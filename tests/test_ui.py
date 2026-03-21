@@ -16,6 +16,7 @@ from endometrial_app.ui import (
     _build_split_distribution_frame,
     _load_training_history,
     _load_training_summary,
+    _safe_chart_limit,
     build_ui,
 )
 
@@ -76,6 +77,22 @@ def test_eda_frames_match_expected_project_counts() -> None:
     assert len(history) == 4
     assert "epoch" in history.columns
     assert len(demo_profile_frame) == 20
+
+
+def test_safe_chart_limit_starts_from_zero() -> None:
+    frame = _build_class_distribution_frame(
+        {
+            "clean_counts": {
+                "infected": 779,
+                "uninfected": 781,
+            }
+        }
+    )
+
+    chart_limit = _safe_chart_limit(frame, "count", minimum=10.0)
+
+    assert chart_limit[0] == 0.0
+    assert chart_limit[1] > 781.0
 
 
 def test_service_generates_explanation_artifacts() -> None:

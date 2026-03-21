@@ -558,6 +558,15 @@ def _build_demo_profile_frame(project_root: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _safe_chart_limit(frame: pd.DataFrame, column: str, minimum: float = 1.0) -> list[float]:
+    if frame.empty or column not in frame:
+        return [0.0, minimum]
+
+    maximum = float(frame[column].max())
+    padded_maximum = max(minimum, maximum * 1.1)
+    return [0.0, padded_maximum]
+
+
 def _project_about_markdown(summary: dict[str, Any]) -> str:
     clean_counts = summary.get("clean_counts", {})
     split_counts = summary.get("split_counts", {})
@@ -734,6 +743,8 @@ def build_ui(service: PredictionService) -> gr.Blocks:
         {"loss": "Training Loss", "val_loss": "Validation Loss"},
     )
     demo_profile_frame = _build_demo_profile_frame(project_root)
+    class_chart_limit = _safe_chart_limit(class_distribution_frame, "count", minimum=10.0)
+    split_chart_limit = _safe_chart_limit(split_distribution_frame, "count", minimum=10.0)
 
     theme = gr.themes.Soft(
         primary_hue="blue",
@@ -993,7 +1004,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             <span class="section-kicker">Dataset Balance</span>
                             ## Class distribution
 
-                            This chart shows the cleaned number of infected and uninfected images used to prepare the production model.
+                            This chart shows the cleaned number of infected and uninfected images used to prepare the production model. After duplicate handling, the deployed dataset contains `779 infected` and `781 uninfected` scans, so it is still very close to balanced even though the counts are not perfectly identical.
                             """,
                             elem_classes="helper-copy",
                         )
@@ -1005,6 +1016,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             color_map={"Infected": "#0e4d73", "Uninfected": "#178b76"},
                             y_title="Images",
                             x_title="Class",
+                            y_lim=class_chart_limit,
                             show_fullscreen_button=False,
                             show_export_button=False,
                         )
@@ -1026,6 +1038,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             color_map={"Infected": "#0e4d73", "Uninfected": "#178b76"},
                             y_title="Images",
                             x_title="Split",
+                            y_lim=split_chart_limit,
                             show_fullscreen_button=False,
                             show_export_button=False,
                         )

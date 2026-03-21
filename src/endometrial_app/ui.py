@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import html
 import json
+import tempfile
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -263,6 +265,33 @@ button[role="tab"][aria-selected="true"] {
     line-height: 1.7;
 }
 
+.download-card {
+    padding: 1.15rem 1.2rem;
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(223, 244, 238, 0.7) 100%);
+    border: 1px solid rgba(9, 45, 70, 0.08);
+    box-shadow: 0 18px 42px rgba(18, 36, 45, 0.08);
+}
+
+.download-card p,
+.download-card li {
+    color: var(--brand-slate);
+    line-height: 1.75;
+}
+
+.download-highlight {
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    background: rgba(14, 77, 115, 0.08);
+    border: 1px solid rgba(14, 77, 115, 0.1);
+}
+
+.download-highlight p {
+    margin: 0;
+    color: var(--brand-blue-deep);
+    line-height: 1.7;
+}
+
 .author-row {
     align-items: center;
 }
@@ -363,6 +392,39 @@ def _hero_stats_html(summary: dict[str, Any]) -> str:
     return f'<div class="hero-stat-grid">{stats_markup}</div>'
 
 
+def _demo_bundle_filename() -> str:
+    return "endometrial-demo-test-images.zip"
+
+
+def _build_demo_bundle(project_root: Path) -> str:
+    sample_paths = _collect_demo_samples(project_root)
+    with tempfile.NamedTemporaryFile(
+        prefix="endometrial-demo-samples-",
+        suffix=".zip",
+        delete=False,
+    ) as temporary_file:
+        bundle_path = Path(temporary_file.name)
+
+    with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        manifest_lines = [
+            "Endometrial Infection Classification App",
+            "",
+            "Bundle contents:",
+            "- 20 demo images from the held-out test split",
+            "- 10 infected examples",
+            "- 10 uninfected examples",
+            "",
+            "Intended use:",
+            "These images are provided so users can test the deployed application without sourcing their own scans.",
+        ]
+        archive.writestr("README.txt", "\n".join(manifest_lines))
+        for sample_path in sample_paths:
+            sample_file = Path(sample_path)
+            archive.write(sample_file, arcname=f"demo_samples/{sample_file.name}")
+
+    return str(bundle_path)
+
+
 def _project_about_markdown(summary: dict[str, Any]) -> str:
     clean_counts = summary.get("clean_counts", {})
     split_counts = summary.get("split_counts", {})
@@ -380,6 +442,12 @@ This application is an end-to-end image classification solution built to disting
 
 Endometrial infection assessment from imaging data can be difficult to operationalize in a way that is fast, repeatable, and easy for researchers or clinicians to interact with. This project turns the underlying research work into a deployable application so that a user can upload a scan, receive a class prediction, inspect class probabilities, and use the tool as part of a research-support workflow.
 
+### Why this research is important
+
+Research in this area matters because reproductive and gynecological health conditions can be under-supported by scalable digital tools, especially in settings where specialist capacity, standardized screening support, or advanced infrastructure may be limited. Building AI systems around endometrial image classification helps move valuable medical research toward tools that can support consistency, speed, and broader access to analytical support.
+
+This matters not only for model development, but also for translational impact: it demonstrates how clinical research can be transformed into an interactive system that researchers, innovation teams, and future medical-AI collaborators can actually use, evaluate, and improve.
+
 ### How the solution works
 
 1. A user uploads an endometrial scan image or selects one of the built-in demo samples.
@@ -395,6 +463,12 @@ The deployed model was trained from curated archive data after duplicate handlin
 ### What the output means
 
 The predicted label is the class the model considers most likely for the uploaded scan. The confidence score shows how strongly the model favors that decision, while the class-probability panel reveals the distribution across both classes. This is useful because it allows the user to see not only the final prediction, but also how decisive or uncertain the model is.
+
+### Why the solution is useful to humanity
+
+The broader human value of this work is that it helps make specialized medical-image research more usable, testable, and deployable. A system like this can contribute to faster triage support, more reproducible research pipelines, better experimentation, and wider access to AI-assisted tools that extend expert capacity rather than replace it.
+
+When solutions like this are responsibly developed, they can reduce manual bottlenecks, encourage earlier analytical review, and create a foundation for future diagnostic-support systems that are more accessible across institutions and resource settings. In that sense, the project is not just a classifier; it is part of a larger movement toward practical, human-centered medical AI.
 
 ### Responsible use
 
@@ -489,6 +563,9 @@ def build_ui(service: PredictionService) -> gr.Blocks:
             "input_size": list(service.settings.image_size),
         }
         return _prediction_card_html(result), result["probabilities"], metadata
+
+    def download_demo_bundle() -> str:
+        return _build_demo_bundle(project_root)
 
     with gr.Blocks(
         title="Endometrial Infection Classification App",
@@ -594,6 +671,56 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                     examples_per_page=20,
                     label="Demo scan gallery",
                 )
+
+            with gr.Tab("Download"):
+                gr.Markdown(
+                    """
+                    ## Download Test Images
+
+                    This tab lets users download the demo test-image bundle used for public app exploration. The package is designed for quick testing, demos, and interface validation when real endometrial scans are not immediately available.
+                    """,
+                    elem_classes="sample-copy",
+                )
+                gr.HTML(
+                    """
+                    <div class="download-highlight">
+                        <p>
+                            The download bundle contains 20 curated test images drawn from the held-out test split: 10 infected examples and 10 uninfected examples.
+                        </p>
+                    </div>
+                    """
+                )
+                with gr.Row():
+                    with gr.Column(scale=6, elem_classes="download-card"):
+                        gr.Markdown(
+                            """
+                            ### What is included
+
+                            - A balanced set of 20 demo scan images
+                            - Files organized for quick local testing
+                            - A small `README.txt` inside the archive describing the bundle
+
+                            ### Suggested use
+
+                            - Download the bundle
+                            - Upload any image into the **Classify** tab
+                            - Compare outputs across infected and uninfected examples
+                            """,
+                        )
+                    with gr.Column(scale=4, elem_classes="download-card"):
+                        gr.Markdown(
+                            f"""
+                            ### Ready to download
+
+                            File name: `{_demo_bundle_filename()}`
+                            """,
+                        )
+                        gr.DownloadButton(
+                            label="Download test image bundle",
+                            value=download_demo_bundle,
+                            variant="primary",
+                            size="lg",
+                        )
 
             with gr.Tab("About"):
                 gr.Markdown(

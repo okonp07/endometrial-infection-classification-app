@@ -1,0 +1,8 @@
+stages:
+  write_labels:
+    cmd: python scripts/export_model_artifacts.py --model models/endometrial_classifier.keras --output-model models/endometrial_classifier.keras --labels infected uninfected --labels-path artifacts/class_names.json
+    deps:
+      - scripts/export_model_artifacts.py
+      - models/endometrial_classifier.keras
+    outs:
+      - artifacts/class_names.json

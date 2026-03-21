@@ -35,6 +35,7 @@ jobs:
             --exclude ".github/" \
             --exclude ".venv/" \
             --exclude "__pycache__/" \
+            --exclude "hf-space/" \
             ./ hf-space/
 
       - name: Commit and push

@@ -29,7 +29,7 @@ CUSTOM_CSS = """
     --brand-green-soft: #dff4ee;
     --brand-ash: #eef3f4;
     --brand-ink: #12242d;
-    --brand-slate: #60717a;
+    --brand-slate: #4d6069;
     --brand-white: #ffffff;
 }
 
@@ -40,6 +40,8 @@ CUSTOM_CSS = """
         linear-gradient(180deg, #f8fbfb 0%, #edf2f3 100%);
     color: var(--brand-ink);
     font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
 }
 
 .gradio-container .prose,
@@ -51,12 +53,27 @@ CUSTOM_CSS = """
     color: inherit;
 }
 
+.gradio-container code,
+.gradio-container pre {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
 [role="tablist"] {
     background: rgba(255, 255, 255, 0.78);
     border: 1px solid rgba(9, 45, 70, 0.08);
     border-radius: 22px;
     padding: 0.4rem;
     box-shadow: 0 12px 32px rgba(18, 36, 45, 0.08);
+    gap: 0.35rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+[role="tablist"]::-webkit-scrollbar {
+    display: none;
 }
 
 button[role="tab"] {
@@ -64,6 +81,10 @@ button[role="tab"] {
     color: var(--brand-blue-deep) !important;
     font-weight: 700 !important;
     transition: all 0.2s ease;
+    min-height: 44px;
+    padding: 0.7rem 1rem !important;
+    white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 button[role="tab"][aria-selected="true"] {
@@ -204,6 +225,7 @@ button[role="tab"][aria-selected="true"] {
 
 .panel-card h2 {
     margin-top: 0 !important;
+    line-height: 1.12;
 }
 
 .helper-copy p,
@@ -454,12 +476,193 @@ button[role="tab"][aria-selected="true"] {
 }
 
 @media (max-width: 960px) {
+    .hero-shell,
+    .workspace-row,
+    .author-row,
+    .visual-row {
+        gap: 0.85rem;
+    }
+
+    .hero-copy,
+    .hero-banner-wrap,
+    .panel-card,
+    .author-card,
+    .download-card {
+        padding: 1rem !important;
+        border-radius: 22px;
+    }
+
     .hero-copy h1 {
-        font-size: 2.35rem !important;
+        font-size: 2.15rem !important;
+        line-height: 1.06 !important;
+    }
+
+    .hero-copy p {
+        font-size: 0.98rem;
+        line-height: 1.65;
+    }
+
+    .hero-copy .hero-eyebrow {
+        font-size: 0.74rem;
+        padding: 0.38rem 0.7rem;
     }
 
     .hero-stat-grid {
         grid-template-columns: 1fr;
+    }
+
+    .hero-stat {
+        padding: 0.9rem;
+    }
+
+    .hero-stat-value {
+        font-size: 1.45rem;
+    }
+
+    .hero-stat-label,
+    .prediction-shell p,
+    .helper-copy p,
+    .sample-copy p,
+    .about-copy p,
+    .about-copy li,
+    .author-copy p,
+    .download-card p,
+    .download-card li,
+    .explanation-shell p,
+    .footer-note p {
+        font-size: 0.97rem;
+        line-height: 1.65;
+    }
+
+    .section-kicker,
+    .prediction-kicker {
+        font-size: 0.74rem;
+    }
+
+    .panel-card h2,
+    .about-copy h2,
+    .sample-copy h2 {
+        font-size: 1.75rem !important;
+        line-height: 1.14 !important;
+    }
+
+    .prediction-title {
+        font-size: 1.22rem;
+    }
+
+    .button-row {
+        gap: 0.7rem;
+    }
+
+    .button-row button {
+        width: 100%;
+    }
+
+    .upload-card [data-testid="image"],
+    .upload-card .image-container {
+        min-height: 300px !important;
+    }
+
+    .visual-row [data-testid="image"],
+    .visual-row .image-container {
+        min-height: 230px !important;
+    }
+
+    .footer-note {
+        padding: 1rem 0.9rem 1.35rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .gradio-container {
+        padding-left: 0.7rem !important;
+        padding-right: 0.7rem !important;
+    }
+
+    [role="tablist"] {
+        padding: 0.3rem;
+        border-radius: 18px;
+    }
+
+    button[role="tab"] {
+        font-size: 0.86rem !important;
+        padding: 0.66rem 0.82rem !important;
+    }
+
+    .hero-copy,
+    .hero-banner-wrap,
+    .panel-card,
+    .author-card,
+    .download-card {
+        padding: 0.92rem !important;
+        border-radius: 20px;
+    }
+
+    .hero-copy h1 {
+        font-size: 1.85rem !important;
+    }
+
+    .hero-copy p {
+        font-size: 0.94rem;
+    }
+
+    .panel-card h2,
+    .about-copy h2,
+    .sample-copy h2 {
+        font-size: 1.5rem !important;
+    }
+
+    .author-photo,
+    .author-placeholder {
+        width: min(180px, 100%);
+    }
+
+    .prediction-shell {
+        padding: 1rem;
+        border-radius: 18px;
+    }
+
+    .panel-card .json-container,
+    .result-card .json-container,
+    .explanation-panel .json-container {
+        font-size: 0.84rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-copy .hero-eyebrow {
+        width: 100%;
+        text-align: center;
+    }
+
+    .hero-copy h1 {
+        font-size: 1.62rem !important;
+        line-height: 1.08 !important;
+    }
+
+    .hero-copy p,
+    .prediction-shell p,
+    .helper-copy p,
+    .sample-copy p,
+    .about-copy p,
+    .about-copy li,
+    .author-copy p,
+    .download-card p,
+    .download-card li,
+    .explanation-shell p,
+    .footer-note p {
+        font-size: 0.92rem;
+    }
+
+    .panel-card h2,
+    .about-copy h2,
+    .sample-copy h2 {
+        font-size: 1.34rem !important;
+    }
+
+    .prediction-chip {
+        width: 100%;
+        justify-content: center;
     }
 }
 """
@@ -898,7 +1101,7 @@ Future work should enrich the project without weakening its transparency. Improv
 AUTHOR_MARKDOWN = """
 ## About the Authors
 
-This project currently credits three authors. The image blocks below are placeholders showing where each author's profile image can be added later.
+This project currently credits three authors. The cards below show the intended author layout, with a live profile image for Okon Prince and placeholders for the remaining authors until their final images are provided.
 """
 
 

@@ -4,6 +4,7 @@ from pathlib import Path
 import zipfile
 
 import gradio as gr
+import pytest
 from PIL import Image
 
 from endometrial_app.config import Settings
@@ -78,6 +79,7 @@ def test_eda_frames_match_expected_project_counts() -> None:
 
 
 def test_service_generates_explanation_artifacts() -> None:
+    pytest.importorskip("tensorflow")
     project_root = Path(__file__).resolve().parents[1]
     service = make_service()
     sample_path = project_root / "assets" / "demo_samples" / "infected_01.jpg"

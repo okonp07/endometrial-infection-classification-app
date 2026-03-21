@@ -4,10 +4,19 @@ from pathlib import Path
 import zipfile
 
 import gradio as gr
+from PIL import Image
 
 from endometrial_app.config import Settings
 from endometrial_app.service import PredictionService
-from endometrial_app.ui import _build_demo_bundle, build_ui
+from endometrial_app.ui import (
+    _build_class_distribution_frame,
+    _build_demo_bundle,
+    _build_demo_profile_frame,
+    _build_split_distribution_frame,
+    _load_training_history,
+    _load_training_summary,
+    build_ui,
+)
 
 
 def make_service() -> PredictionService:
@@ -51,3 +60,32 @@ def test_download_bundle_contains_samples_and_manifest() -> None:
     finally:
         if bundle_path.exists():
             bundle_path.unlink()
+
+
+def test_eda_frames_match_expected_project_counts() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    summary = _load_training_summary(project_root)
+    history = _load_training_history(project_root)
+    class_frame = _build_class_distribution_frame(summary)
+    split_frame = _build_split_distribution_frame(summary)
+    demo_profile_frame = _build_demo_profile_frame(project_root)
+
+    assert int(class_frame["count"].sum()) == 1560
+    assert int(split_frame["count"].sum()) == 1560
+    assert len(history) == 4
+    assert "epoch" in history.columns
+    assert len(demo_profile_frame) == 20
+
+
+def test_service_generates_explanation_artifacts() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    service = make_service()
+    sample_path = project_root / "assets" / "demo_samples" / "infected_01.jpg"
+
+    with Image.open(sample_path).convert("RGB") as image:
+        prediction = service.predict(image)
+        explanation = service.explain_prediction(image, prediction)
+
+    assert explanation["model_input_image"] is not None
+    assert explanation["attention_overlay_image"] is not None
+    assert explanation["attention_layer"] != "unavailable"

@@ -20,5 +20,3 @@ models/*.tflite
 data/raw/
 data/interim/
 data/processed/
-artifacts/training_summary.json
-artifacts/training_history.csv

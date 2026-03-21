@@ -1,0 +1,30 @@
+{
+  "pretrained_weights_loaded": true,
+  "clean_counts": {
+    "infected": 779,
+    "uninfected": 781
+  },
+  "split_counts": {
+    "train": {
+      "infected": 545,
+      "uninfected": 547
+    },
+    "validation": {
+      "infected": 117,
+      "uninfected": 117
+    },
+    "test": {
+      "infected": 117,
+      "uninfected": 117
+    }
+  },
+  "test_metrics": {
+    "accuracy": 1.0,
+    "auc": 1.0,
+    "loss": 0.003170173382386565,
+    "precision": 1.0,
+    "recall": 1.0
+  },
+  "model_path": "/Users/researchanddevelopment2/Documents/Zindi/endometrial-infection-zero-cost-app/models/endometrial_classifier.keras",
+  "labels_path": "/Users/researchanddevelopment2/Documents/Zindi/endometrial-infection-zero-cost-app/artifacts/class_names.json"
+}

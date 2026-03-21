@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 
 import gradio as gr
+import numpy as np
+import pandas as pd
 from PIL import Image
 
 from endometrial_app.service import PredictionService
@@ -292,6 +294,49 @@ button[role="tab"][aria-selected="true"] {
     line-height: 1.7;
 }
 
+.explanation-shell {
+    margin-top: 1rem;
+    padding: 1.15rem 1.2rem;
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(238, 243, 244, 0.92) 100%);
+    border: 1px solid rgba(9, 45, 70, 0.08);
+}
+
+.explanation-shell p,
+.explanation-shell li {
+    color: var(--brand-slate);
+    line-height: 1.7;
+}
+
+.explanation-shell .explanation-title {
+    color: var(--brand-blue-deep);
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.visual-row {
+    margin-top: 0.85rem;
+    gap: 0.85rem;
+}
+
+.eda-note {
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(14, 77, 115, 0.08), rgba(23, 139, 118, 0.1));
+    border: 1px solid rgba(14, 77, 115, 0.08);
+}
+
+.eda-note p {
+    margin: 0;
+    color: var(--brand-blue-deep);
+    line-height: 1.7;
+}
+
+.eda-gallery-wrap {
+    margin-top: 1rem;
+}
+
 .author-row {
     align-items: center;
 }
@@ -425,6 +470,90 @@ def _build_demo_bundle(project_root: Path) -> str:
     return str(bundle_path)
 
 
+def _load_training_history(project_root: Path) -> pd.DataFrame:
+    history_path = project_root / "artifacts" / "training_history.csv"
+    if not history_path.exists():
+        return pd.DataFrame()
+
+    history = pd.read_csv(history_path)
+    history.insert(0, "epoch", range(1, len(history) + 1))
+    return history
+
+
+def _build_class_distribution_frame(summary: dict[str, Any]) -> pd.DataFrame:
+    clean_counts = summary.get("clean_counts", {})
+    return pd.DataFrame(
+        [
+            {"class": class_name.title(), "count": int(count), "series": "Dataset"}
+            for class_name, count in clean_counts.items()
+        ]
+    )
+
+
+def _build_split_distribution_frame(summary: dict[str, Any]) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    for split_name, class_counts in summary.get("split_counts", {}).items():
+        for class_name, count in class_counts.items():
+            rows.append(
+                {
+                    "split": split_name.title(),
+                    "class": class_name.title(),
+                    "count": int(count),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def _build_test_metrics_frame(summary: dict[str, Any]) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {"metric": metric.replace("_", " ").title(), "value": float(value)}
+            for metric, value in summary.get("test_metrics", {}).items()
+        ]
+    )
+
+
+def _build_curve_frame(history: pd.DataFrame, columns: dict[str, str]) -> pd.DataFrame:
+    if history.empty:
+        return pd.DataFrame(columns=["epoch", "series", "value"])
+
+    curve_frame = history[["epoch", *columns.keys()]].melt(
+        id_vars="epoch",
+        var_name="series",
+        value_name="value",
+    )
+    curve_frame["series"] = curve_frame["series"].map(columns)
+    return curve_frame
+
+
+def _build_demo_profile_frame(project_root: Path) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    for sample_path in _collect_demo_samples(project_root):
+        sample_file = Path(sample_path)
+        with Image.open(sample_file).convert("L") as image:
+            image_array = np.asarray(image, dtype=np.float32)
+            rows.append(
+                {
+                    "file": sample_file.name,
+                    "class_label": "Infected" if sample_file.name.startswith("infected") else "Uninfected",
+                    "width": int(image.width),
+                    "height": int(image.height),
+                    "mean_intensity": round(float(image_array.mean()), 2),
+                    "std_intensity": round(float(image_array.std()), 2),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def _build_eda_gallery(project_root: Path) -> list[tuple[str, str]]:
+    gallery_items: list[tuple[str, str]] = []
+    for sample_path in _collect_demo_samples(project_root)[:8]:
+        sample_file = Path(sample_path)
+        caption = "Infected example" if sample_file.name.startswith("infected") else "Uninfected example"
+        gallery_items.append((str(sample_file), caption))
+    return gallery_items
+
+
 def _project_about_markdown(summary: dict[str, Any]) -> str:
     clean_counts = summary.get("clean_counts", {})
     split_counts = summary.get("split_counts", {})
@@ -527,13 +656,82 @@ def _prediction_card_html(result: dict[str, Any]) -> str:
     """
 
 
+def _explanation_placeholder_html() -> str:
+    return """
+    <div class="explanation-shell">
+        <div class="explanation-title">Why the model predicted this</div>
+        <p>
+            After inference, this section will explain the processing steps used by the model and show an attention-based visual summary for the current scan.
+        </p>
+    </div>
+    """
+
+
+def _explanation_card_html(result: dict[str, Any], explanation: dict[str, Any], image_size: tuple[int, int]) -> str:
+    predicted_label = str(result["predicted_label"]).replace("_", " ").title()
+    focus_region = str(explanation.get("focus_region", "unavailable")).title()
+    focus_coverage = float(explanation.get("focus_coverage", 0.0))
+    margin = float(explanation.get("margin", 0.0))
+    runner_up_label = str(explanation.get("runner_up_label", "unavailable")).replace("_", " ").title()
+    attention_layer = str(explanation.get("attention_layer", "unavailable"))
+    error_message = explanation.get("error")
+
+    detail_copy = (
+        f"""
+        <p>
+            The model first resized the uploaded scan to <strong>{image_size[0]} x {image_size[1]}</strong> pixels, then passed it through the trained TensorFlow feature extractor.
+            For this run, the strongest activation clustered in the <strong>{html.escape(focus_region)}</strong> region of the scan and covered roughly <strong>{focus_coverage:.0%}</strong> of the analyzed frame at high attention.
+        </p>
+        <p>
+            The winning class, <strong>{html.escape(predicted_label)}</strong>, finished ahead of <strong>{html.escape(runner_up_label)}</strong> by a probability margin of <strong>{margin:.2%}</strong>.
+            The attention overlay below is an input-saliency view that highlights the areas that most influenced the network's decision, derived from <code>{html.escape(attention_layer)}</code>.
+        </p>
+        <p>
+            Brighter colored zones indicate stronger influence on the model output. This is an interpretability aid for the current inference run, not a clinical segmentation or a standalone diagnosis.
+        </p>
+        """
+    )
+
+    if error_message:
+        detail_copy = (
+            f"""
+            <p>
+                The prediction is available, but the attention view could not be generated for this run.
+                The fallback model-input preview is still shown below.
+            </p>
+            <p><strong>Technical detail:</strong> {html.escape(str(error_message))}</p>
+            """
+        )
+
+    return f"""
+    <div class="explanation-shell">
+        <div class="explanation-title">Why the model predicted this</div>
+        {detail_copy}
+    </div>
+    """
+
+
 def build_ui(service: PredictionService) -> gr.Blocks:
     project_root = service.settings.project_root
     assets_dir = project_root / "assets"
     banner_path = assets_dir / "banner" / "endometrium_banner.png"
     author_path = assets_dir / "author" / "okon-prince.png"
     training_summary = _load_training_summary(project_root)
+    training_history = _load_training_history(project_root)
     demo_samples = _collect_demo_samples(project_root)
+    class_distribution_frame = _build_class_distribution_frame(training_summary)
+    split_distribution_frame = _build_split_distribution_frame(training_summary)
+    test_metrics_frame = _build_test_metrics_frame(training_summary)
+    accuracy_curve_frame = _build_curve_frame(
+        training_history,
+        {"accuracy": "Training Accuracy", "val_accuracy": "Validation Accuracy"},
+    )
+    loss_curve_frame = _build_curve_frame(
+        training_history,
+        {"loss": "Training Loss", "val_loss": "Validation Loss"},
+    )
+    demo_profile_frame = _build_demo_profile_frame(project_root)
+    eda_gallery = _build_eda_gallery(project_root)
 
     theme = gr.themes.Soft(
         primary_hue="blue",
@@ -548,7 +746,9 @@ def build_ui(service: PredictionService) -> gr.Blocks:
         font_mono=[gr.themes.GoogleFont("IBM Plex Mono"), "monospace"],
     )
 
-    def classify(image: Image.Image) -> tuple[str, dict[str, float], dict[str, Any]]:
+    def classify(
+        image: Image.Image,
+    ) -> tuple[str, dict[str, float], dict[str, Any], str, Image.Image | None, Image.Image | None]:
         if image is None:
             raise gr.Error("Please upload an image before running inference.")
 
@@ -556,13 +756,22 @@ def build_ui(service: PredictionService) -> gr.Blocks:
             raise gr.Error("The model is not loaded yet. Export a trained model into the models directory first.")
 
         result = service.predict(image)
+        explanation = service.explain_prediction(image, result)
         metadata = {
             "predicted_index": result["predicted_index"],
             "class_order": service.settings.class_names,
             "model_path": str(service.settings.model_path),
             "input_size": list(service.settings.image_size),
+            "attention_layer": explanation.get("attention_layer", "unavailable"),
         }
-        return _prediction_card_html(result), result["probabilities"], metadata
+        return (
+            _prediction_card_html(result),
+            result["probabilities"],
+            metadata,
+            _explanation_card_html(result, explanation, service.settings.image_size),
+            explanation.get("model_input_image"),
+            explanation.get("attention_overlay_image"),
+        )
 
     def download_demo_bundle() -> str:
         return _build_demo_bundle(project_root)
@@ -625,19 +834,46 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                         )
                         summary_output = gr.HTML(value=_prediction_placeholder_html())
                         probability_output = gr.Label(label="Class probabilities", num_top_classes=2)
+                        explanation_output = gr.HTML(value=_explanation_placeholder_html())
+                        with gr.Row(elem_classes="visual-row"):
+                            model_input_output = gr.Image(
+                                label="Model input used for inference",
+                                interactive=False,
+                                type="pil",
+                            )
+                            attention_overlay_output = gr.Image(
+                                label="Model attention overlay",
+                                interactive=False,
+                                type="pil",
+                            )
                         metadata_output = gr.JSON(label="Inference metadata")
 
                 with gr.Row(elem_classes="button-row"):
                     submit_button = gr.Button("Run classification", variant="primary")
                     gr.ClearButton(
-                        [image_input, summary_output, probability_output, metadata_output],
+                        [
+                            image_input,
+                            summary_output,
+                            probability_output,
+                            explanation_output,
+                            model_input_output,
+                            attention_overlay_output,
+                            metadata_output,
+                        ],
                         value="Clear",
                     )
 
                 submit_button.click(
                     fn=classify,
                     inputs=image_input,
-                    outputs=[summary_output, probability_output, metadata_output],
+                    outputs=[
+                        summary_output,
+                        probability_output,
+                        metadata_output,
+                        explanation_output,
+                        model_input_output,
+                        attention_overlay_output,
+                    ],
                 )
 
                 gr.Markdown(
@@ -721,6 +957,173 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             variant="primary",
                             size="lg",
                         )
+
+            with gr.Tab("EDA Lab"):
+                gr.Markdown(
+                    """
+                    ## EDA Lab
+
+                    This space summarizes the data profile, split strategy, training behavior, and representative image characteristics behind the deployed classifier.
+                    """,
+                    elem_classes="sample-copy",
+                )
+                gr.HTML(
+                    """
+                    <div class="eda-note">
+                        <p>
+                            The EDA view combines tracked training summaries with representative demo-image statistics so users can inspect the project beyond the final prediction screen.
+                        </p>
+                    </div>
+                    """
+                )
+                with gr.Row():
+                    with gr.Column(scale=5, elem_classes="panel-card"):
+                        gr.Markdown(
+                            """
+                            <span class="section-kicker">Dataset Balance</span>
+                            ## Class distribution
+
+                            This chart shows the cleaned number of infected and uninfected images used to prepare the production model.
+                            """,
+                            elem_classes="helper-copy",
+                        )
+                        gr.BarPlot(
+                            value=class_distribution_frame,
+                            x="class",
+                            y="count",
+                            color="class",
+                            color_map={"Infected": "#0e4d73", "Uninfected": "#178b76"},
+                            y_title="Images",
+                            x_title="Class",
+                            show_fullscreen_button=False,
+                            show_export_button=False,
+                        )
+                    with gr.Column(scale=5, elem_classes="panel-card"):
+                        gr.Markdown(
+                            """
+                            <span class="section-kicker">Split Strategy</span>
+                            ## Train, validation, test
+
+                            This view shows how the curated dataset was split to support robust model development and held-out evaluation.
+                            """,
+                            elem_classes="helper-copy",
+                        )
+                        gr.BarPlot(
+                            value=split_distribution_frame,
+                            x="split",
+                            y="count",
+                            color="class",
+                            color_map={"Infected": "#0e4d73", "Uninfected": "#178b76"},
+                            y_title="Images",
+                            x_title="Split",
+                            show_fullscreen_button=False,
+                            show_export_button=False,
+                        )
+                with gr.Row():
+                    with gr.Column(scale=5, elem_classes="panel-card"):
+                        gr.Markdown(
+                            """
+                            <span class="section-kicker">Training Behaviour</span>
+                            ## Accuracy curves
+
+                            These curves show how training and validation accuracy evolved across epochs.
+                            """,
+                            elem_classes="helper-copy",
+                        )
+                        gr.LinePlot(
+                            value=accuracy_curve_frame,
+                            x="epoch",
+                            y="value",
+                            color="series",
+                            color_map={
+                                "Training Accuracy": "#0e4d73",
+                                "Validation Accuracy": "#178b76",
+                            },
+                            y_title="Accuracy",
+                            x_title="Epoch",
+                            show_fullscreen_button=False,
+                            show_export_button=False,
+                        )
+                    with gr.Column(scale=5, elem_classes="panel-card"):
+                        gr.Markdown(
+                            """
+                            <span class="section-kicker">Training Behaviour</span>
+                            ## Loss curves
+
+                            Lower loss across both training and validation suggests the classifier converged cleanly during optimization.
+                            """,
+                            elem_classes="helper-copy",
+                        )
+                        gr.LinePlot(
+                            value=loss_curve_frame,
+                            x="epoch",
+                            y="value",
+                            color="series",
+                            color_map={
+                                "Training Loss": "#0e4d73",
+                                "Validation Loss": "#178b76",
+                            },
+                            y_title="Loss",
+                            x_title="Epoch",
+                            show_fullscreen_button=False,
+                            show_export_button=False,
+                        )
+                with gr.Row():
+                    with gr.Column(scale=4, elem_classes="panel-card"):
+                        gr.Markdown(
+                            """
+                            <span class="section-kicker">Held-Out Evaluation</span>
+                            ## Test metrics
+
+                            These metrics summarize the current production model on the reserved test split.
+                            """,
+                            elem_classes="helper-copy",
+                        )
+                        gr.BarPlot(
+                            value=test_metrics_frame,
+                            x="metric",
+                            y="value",
+                            color_map={"value": "#178b76"},
+                            y_title="Score",
+                            x_title="Metric",
+                            show_fullscreen_button=False,
+                            show_export_button=False,
+                        )
+                    with gr.Column(scale=6, elem_classes="panel-card"):
+                        gr.Markdown(
+                            """
+                            <span class="section-kicker">Representative Samples</span>
+                            ## Demo-image profile
+
+                            This table captures simple descriptive statistics from the downloadable sample bundle.
+                            """,
+                            elem_classes="helper-copy",
+                        )
+                        gr.Dataframe(
+                            value=demo_profile_frame,
+                            interactive=False,
+                            wrap=True,
+                            row_count=len(demo_profile_frame),
+                            col_count=len(demo_profile_frame.columns),
+                        )
+                with gr.Column(elem_classes="panel-card eda-gallery-wrap"):
+                    gr.Markdown(
+                        """
+                        <span class="section-kicker">Visual Spread</span>
+                        ## Representative scan gallery
+
+                        These examples help illustrate the visual variety present in the deployed project bundle.
+                        """,
+                        elem_classes="helper-copy",
+                    )
+                    gr.Gallery(
+                        value=eda_gallery,
+                        columns=4,
+                        rows=2,
+                        object_fit="cover",
+                        preview=True,
+                        height="auto",
+                    )
 
             with gr.Tab("About"):
                 gr.Markdown(

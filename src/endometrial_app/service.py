@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Protocol
+from typing import Any, Protocol
 
 from PIL import Image
 
 from endometrial_app.config import Settings, get_settings
-from endometrial_app.model import LoadedModel, load_model, predict_probabilities, preprocess_image
+from endometrial_app.model import (
+    LoadedModel,
+    build_attention_explanation,
+    load_model,
+    predict_probabilities,
+    preprocess_image,
+)
 
 
 class PredictorProtocol(Protocol):
@@ -62,3 +68,27 @@ class PredictionService:
             "confidence": confidence,
             "probabilities": probabilities,
         }
+
+    def explain_prediction(self, image: Image.Image, prediction: dict[str, object]) -> dict[str, Any]:
+        image_batch = preprocess_image(image, self.settings.image_size)
+        try:
+            return build_attention_explanation(
+                loaded_model=self.model_bundle,
+                image=image,
+                image_batch=image_batch,
+                predicted_index=int(prediction["predicted_index"]),
+                probabilities={str(key): float(value) for key, value in prediction["probabilities"].items()},
+            )
+        except Exception as exc:
+            return {
+                "model_input_image": Image.fromarray(image_batch[0].astype("uint8")),
+                "attention_overlay_image": None,
+                "attention_heatmap_image": None,
+                "focus_region": "unavailable",
+                "focus_coverage": 0.0,
+                "winning_label": str(prediction["predicted_label"]),
+                "runner_up_label": "unavailable",
+                "margin": 0.0,
+                "attention_layer": "unavailable",
+                "error": str(exc),
+            }

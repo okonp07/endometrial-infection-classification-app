@@ -117,11 +117,12 @@ def build_attention_explanation(
         model_input.size,
         Image.Resampling.BILINEAR,
     )
+    heatmap_u8 = ImageOps.autocontrast(heatmap_u8)
     heatmap_color = ImageOps.colorize(
         heatmap_u8,
-        black="#dfe7ea",
-        mid="#0e4d73",
-        white="#1cb595",
+        black="#0b1620",
+        mid="#0e6fb2",
+        white="#19d3a5",
     )
 
     overlay = model_input.convert("RGBA")

@@ -67,10 +67,14 @@ button[role="tab"][aria-selected="true"] {
 }
 
 .hero-shell,
-.workspace-row,
 .author-row {
     gap: 1rem;
     align-items: stretch;
+}
+
+.workspace-row {
+    gap: 1rem;
+    align-items: flex-start;
 }
 
 .hero-copy,
@@ -333,10 +337,6 @@ button[role="tab"][aria-selected="true"] {
     line-height: 1.7;
 }
 
-.eda-gallery-wrap {
-    margin-top: 1rem;
-}
-
 .author-row {
     align-items: center;
 }
@@ -545,15 +545,6 @@ def _build_demo_profile_frame(project_root: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _build_eda_gallery(project_root: Path) -> list[tuple[str, str]]:
-    gallery_items: list[tuple[str, str]] = []
-    for sample_path in _collect_demo_samples(project_root)[:8]:
-        sample_file = Path(sample_path)
-        caption = "Infected example" if sample_file.name.startswith("infected") else "Uninfected example"
-        gallery_items.append((str(sample_file), caption))
-    return gallery_items
-
-
 def _project_about_markdown(summary: dict[str, Any]) -> str:
     clean_counts = summary.get("clean_counts", {})
     split_counts = summary.get("split_counts", {})
@@ -684,7 +675,7 @@ def _explanation_card_html(result: dict[str, Any], explanation: dict[str, Any], 
         </p>
         <p>
             The winning class, <strong>{html.escape(predicted_label)}</strong>, finished ahead of <strong>{html.escape(runner_up_label)}</strong> by a probability margin of <strong>{margin:.2%}</strong>.
-            The attention overlay below is an input-saliency view that highlights the areas that most influenced the network's decision, derived from <code>{html.escape(attention_layer)}</code>.
+            The attention heatmap below is an input-saliency view that highlights the areas that most influenced the network's decision, derived from <code>{html.escape(attention_layer)}</code>.
         </p>
         <p>
             Brighter colored zones indicate stronger influence on the model output. This is an interpretability aid for the current inference run, not a clinical segmentation or a standalone diagnosis.
@@ -718,7 +709,6 @@ def build_ui(service: PredictionService) -> gr.Blocks:
     author_path = assets_dir / "author" / "okon-prince.png"
     training_summary = _load_training_summary(project_root)
     training_history = _load_training_history(project_root)
-    demo_samples = _collect_demo_samples(project_root)
     class_distribution_frame = _build_class_distribution_frame(training_summary)
     split_distribution_frame = _build_split_distribution_frame(training_summary)
     test_metrics_frame = _build_test_metrics_frame(training_summary)
@@ -731,7 +721,6 @@ def build_ui(service: PredictionService) -> gr.Blocks:
         {"loss": "Training Loss", "val_loss": "Validation Loss"},
     )
     demo_profile_frame = _build_demo_profile_frame(project_root)
-    eda_gallery = _build_eda_gallery(project_root)
 
     theme = gr.themes.Soft(
         primary_hue="blue",
@@ -770,7 +759,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
             metadata,
             _explanation_card_html(result, explanation, service.settings.image_size),
             explanation.get("model_input_image"),
-            explanation.get("attention_overlay_image"),
+            explanation.get("attention_heatmap_image"),
         )
 
     def download_demo_bundle() -> str:
@@ -812,7 +801,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             <span class="section-kicker">Step 1</span>
                             ## Upload an image
 
-                            Add an endometrial scan and send it through the classifier. If you do not have a scan available, open the **Sample Images** tab and click any of the 20 curated demo scans.
+                            Add an endometrial scan and send it through the classifier. If you do not have a scan available, open the **Download** tab and use the bundled test image pack.
                             """,
                             elem_classes="helper-copy",
                         )
@@ -820,6 +809,11 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             type="pil",
                             label="Endometrial scan",
                             image_mode="RGB",
+                            sources=["upload"],
+                            height=320,
+                            show_download_button=False,
+                            show_fullscreen_button=False,
+                            show_share_button=False,
                         )
 
                     with gr.Column(scale=5, elem_classes="panel-card"):
@@ -840,11 +834,15 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                                 label="Model input used for inference",
                                 interactive=False,
                                 type="pil",
+                                height=280,
+                                show_download_button=False,
                             )
-                            attention_overlay_output = gr.Image(
-                                label="Model attention overlay",
+                            attention_heatmap_output = gr.Image(
+                                label="Model attention heatmap",
                                 interactive=False,
                                 type="pil",
+                                height=280,
+                                show_download_button=False,
                             )
                         metadata_output = gr.JSON(label="Inference metadata")
 
@@ -857,7 +855,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             probability_output,
                             explanation_output,
                             model_input_output,
-                            attention_overlay_output,
+                            attention_heatmap_output,
                             metadata_output,
                         ],
                         value="Clear",
@@ -872,7 +870,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                         metadata_output,
                         explanation_output,
                         model_input_output,
-                        attention_overlay_output,
+                        attention_heatmap_output,
                     ],
                 )
 
@@ -881,31 +879,6 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                     This tool supports research, experimentation, and AI-assisted screening workflows. Final clinical interpretation should remain with qualified medical experts.
                     """,
                     elem_classes="disclaimer",
-                )
-
-            with gr.Tab("Sample Images"):
-                gr.Markdown(
-                    """
-                    ## Sample Images
-
-                    These 20 demo scans were extracted from the held-out test split so visitors can try the app without needing their own endometrial image. Click any thumbnail below and it will populate the uploader in the **Classify** tab.
-                    """,
-                    elem_classes="sample-copy",
-                )
-                gr.HTML(
-                    """
-                    <div class="sample-note">
-                        <p>
-                            The sample set is balanced across the two target classes and is intended purely for demonstration and interface testing.
-                        </p>
-                    </div>
-                    """
-                )
-                gr.Examples(
-                    examples=demo_samples,
-                    inputs=image_input,
-                    examples_per_page=20,
-                    label="Demo scan gallery",
                 )
 
             with gr.Tab("Download"):
@@ -1106,25 +1079,6 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             row_count=len(demo_profile_frame),
                             col_count=len(demo_profile_frame.columns),
                         )
-                with gr.Column(elem_classes="panel-card eda-gallery-wrap"):
-                    gr.Markdown(
-                        """
-                        <span class="section-kicker">Visual Spread</span>
-                        ## Representative scan gallery
-
-                        These examples help illustrate the visual variety present in the deployed project bundle.
-                        """,
-                        elem_classes="helper-copy",
-                    )
-                    gr.Gallery(
-                        value=eda_gallery,
-                        columns=4,
-                        rows=2,
-                        object_fit="cover",
-                        preview=True,
-                        height="auto",
-                    )
-
             with gr.Tab("About"):
                 gr.Markdown(
                     _project_about_markdown(training_summary),

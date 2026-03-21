@@ -86,6 +86,8 @@ class PredictionService:
                 "attention_heatmap_image": None,
                 "focus_region": "unavailable",
                 "focus_coverage": 0.0,
+                "focus_pattern": "unavailable",
+                "high_attention_threshold": 0.0,
                 "winning_label": str(prediction["predicted_label"]),
                 "runner_up_label": "unavailable",
                 "margin": 0.0,

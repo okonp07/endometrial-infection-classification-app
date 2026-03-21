@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 
 
 @dataclass
@@ -84,10 +84,81 @@ def _to_uint8(array: np.ndarray) -> np.ndarray:
     return np.uint8(np.clip(clipped * 255.0, 0, 255))
 
 
+def _normalize_heatmap(array: np.ndarray) -> np.ndarray:
+    normalized = np.asarray(array, dtype=np.float32)
+    normalized = normalized - normalized.min()
+    maximum = float(normalized.max())
+    if maximum > 0:
+        normalized = normalized / maximum
+    return normalized
+
+
+def _otsu_threshold(array: np.ndarray, bins: int = 256) -> float:
+    flattened = np.clip(np.asarray(array, dtype=np.float32).ravel(), 0.0, 1.0)
+    if flattened.size == 0:
+        return 1.0
+
+    histogram, bin_edges = np.histogram(flattened, bins=bins, range=(0.0, 1.0))
+    histogram = histogram.astype(np.float64)
+    if np.count_nonzero(histogram) <= 1:
+        return float(flattened.max())
+
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+    cumulative_weight = np.cumsum(histogram)
+    cumulative_mean = np.cumsum(histogram * bin_centers)
+    total_weight = cumulative_weight[-1]
+    total_mean = cumulative_mean[-1]
+
+    background_weight = cumulative_weight
+    foreground_weight = total_weight - cumulative_weight
+    numerator = (total_mean * background_weight - cumulative_mean) ** 2
+    denominator = background_weight * foreground_weight
+    between_class_variance = np.divide(
+        numerator,
+        denominator,
+        out=np.zeros_like(numerator),
+        where=denominator > 0,
+    )
+    best_index = int(np.argmax(between_class_variance))
+    return float(bin_centers[best_index])
+
+
+def _smooth_heatmap(array: np.ndarray, blur_radius: float = 6.0) -> np.ndarray:
+    heatmap_u8 = Image.fromarray(_to_uint8(array)).convert("L")
+    smoothed = heatmap_u8.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+    return _normalize_heatmap(np.asarray(smoothed, dtype=np.float32))
+
+
 def _activation_region_label(centroid_x: float, centroid_y: float) -> str:
     horizontal = "left" if centroid_x < 0.33 else "center" if centroid_x < 0.66 else "right"
     vertical = "upper" if centroid_y < 0.33 else "middle" if centroid_y < 0.66 else "lower"
     return f"{vertical} {horizontal}"
+
+
+def _focus_pattern_label(coverage: float) -> str:
+    if coverage <= 0.08:
+        return "compact"
+    if coverage <= 0.18:
+        return "moderately concentrated"
+    if coverage <= 0.30:
+        return "broad"
+    return "diffuse"
+
+
+def _build_attention_mask(heatmap_array: np.ndarray) -> tuple[np.ndarray, float]:
+    normalized_heatmap = _smooth_heatmap(heatmap_array)
+    otsu_threshold = _otsu_threshold(normalized_heatmap)
+    adaptive_floor = float(normalized_heatmap.mean() + 0.20 * normalized_heatmap.std())
+    blended_threshold = 0.55 * otsu_threshold + 0.45 * adaptive_floor
+    active_threshold = float(np.clip(max(blended_threshold, 0.18), 0.18, 0.75))
+    active_mask = normalized_heatmap >= active_threshold
+
+    if not np.any(active_mask):
+        fallback_threshold = float(np.clip(normalized_heatmap.max() * 0.85, 0.0, 1.0))
+        active_mask = normalized_heatmap >= fallback_threshold
+        active_threshold = fallback_threshold
+
+    return active_mask, active_threshold
 
 
 def build_attention_explanation(
@@ -108,9 +179,7 @@ def build_attention_explanation(
 
     gradients = tape.gradient(target_score, image_tensor)[0]
     saliency = tf.reduce_max(tf.abs(gradients), axis=-1)
-    if float(tf.reduce_max(saliency)) > 0:
-        saliency = saliency / tf.reduce_max(saliency)
-    heatmap_array = saliency.numpy()
+    heatmap_array = _normalize_heatmap(saliency.numpy())
 
     model_input = Image.fromarray(np.uint8(np.clip(image_batch[0], 0, 255)))
     heatmap_u8 = Image.fromarray(_to_uint8(heatmap_array)).convert("L").resize(
@@ -131,16 +200,18 @@ def build_attention_explanation(
     overlay_color.putalpha(overlay_alpha)
     overlay = Image.alpha_composite(overlay, overlay_color).convert("RGB")
 
-    active_threshold = float(np.quantile(heatmap_array, 0.85))
-    active_mask = heatmap_array >= active_threshold
-    if not np.any(active_mask):
-        active_mask = heatmap_array >= float(heatmap_array.max())
-
+    active_mask, active_threshold = _build_attention_mask(heatmap_array)
     active_indices = np.argwhere(active_mask)
-    centroid_y = float(active_indices[:, 0].mean() / heatmap_array.shape[0])
-    centroid_x = float(active_indices[:, 1].mean() / heatmap_array.shape[1])
+    active_weights = heatmap_array[active_mask]
+    if float(active_weights.sum()) > 0:
+        centroid_y = float(np.average(active_indices[:, 0], weights=active_weights) / heatmap_array.shape[0])
+        centroid_x = float(np.average(active_indices[:, 1], weights=active_weights) / heatmap_array.shape[1])
+    else:
+        centroid_y = float(active_indices[:, 0].mean() / heatmap_array.shape[0])
+        centroid_x = float(active_indices[:, 1].mean() / heatmap_array.shape[1])
     focus_region = _activation_region_label(centroid_x, centroid_y)
     focus_coverage = float(active_mask.mean())
+    focus_pattern = _focus_pattern_label(focus_coverage)
 
     ordered_probabilities = sorted(
         probabilities.items(),
@@ -157,6 +228,8 @@ def build_attention_explanation(
         "attention_heatmap_image": heatmap_color,
         "focus_region": focus_region,
         "focus_coverage": focus_coverage,
+        "focus_pattern": focus_pattern,
+        "high_attention_threshold": active_threshold,
         "winning_label": winning_label,
         "runner_up_label": runner_up_label,
         "margin": margin,

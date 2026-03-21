@@ -1024,6 +1024,8 @@ def _explanation_card_html(result: dict[str, Any], explanation: dict[str, Any], 
     predicted_label = str(result["predicted_label"]).replace("_", " ").title()
     focus_region = str(explanation.get("focus_region", "unavailable")).title()
     focus_coverage = float(explanation.get("focus_coverage", 0.0))
+    focus_pattern = str(explanation.get("focus_pattern", "unavailable")).replace("_", " ")
+    high_attention_threshold = float(explanation.get("high_attention_threshold", 0.0))
     margin = float(explanation.get("margin", 0.0))
     runner_up_label = str(explanation.get("runner_up_label", "unavailable")).replace("_", " ").title()
     attention_layer = str(explanation.get("attention_layer", "unavailable"))
@@ -1033,14 +1035,14 @@ def _explanation_card_html(result: dict[str, Any], explanation: dict[str, Any], 
         f"""
         <p>
             The model first resized the uploaded scan to <strong>{image_size[0]} x {image_size[1]}</strong> pixels, then passed it through the trained TensorFlow feature extractor.
-            For this run, the strongest activation clustered in the <strong>{html.escape(focus_region)}</strong> region of the scan and covered roughly <strong>{focus_coverage:.0%}</strong> of the analyzed frame at high attention.
+            For this run, the dominant high-attention mass was centered in the <strong>{html.escape(focus_region)}</strong> region of the scan and the resulting saliency mask was <strong>{html.escape(focus_pattern)}</strong>, spanning about <strong>{focus_coverage:.1%}</strong> of the analyzed frame.
         </p>
         <p>
             The winning class, <strong>{html.escape(predicted_label)}</strong>, finished ahead of <strong>{html.escape(runner_up_label)}</strong> by a probability margin of <strong>{margin:.2%}</strong>.
-            The attention heatmap below is an input-saliency view that highlights the areas that most influenced the network's decision, derived from <code>{html.escape(attention_layer)}</code>.
+            The attention heatmap below is an input-saliency view that highlights the areas that most influenced the network's decision, derived from <code>{html.escape(attention_layer)}</code>. The high-attention mask is computed with an adaptive threshold calibrated to the current saliency map rather than a fixed percentage of pixels.
         </p>
         <p>
-            Brighter colored zones indicate stronger influence on the model output. This is an interpretability aid for the current inference run, not a clinical segmentation or a standalone diagnosis.
+            Brighter colored zones indicate stronger influence on the model output. For this image, the adaptive threshold was <strong>{high_attention_threshold:.2f}</strong>. This is an interpretability aid for the current inference run, not a clinical segmentation or a standalone diagnosis.
         </p>
         """
     )
@@ -1115,6 +1117,10 @@ def build_ui(service: PredictionService) -> gr.Blocks:
             "model_path": str(service.settings.model_path),
             "input_size": list(service.settings.image_size),
             "attention_layer": explanation.get("attention_layer", "unavailable"),
+            "focus_region": explanation.get("focus_region", "unavailable"),
+            "focus_pattern": explanation.get("focus_pattern", "unavailable"),
+            "focus_coverage": round(float(explanation.get("focus_coverage", 0.0)), 4),
+            "high_attention_threshold": round(float(explanation.get("high_attention_threshold", 0.0)), 4),
         }
         return (
             _prediction_card_html(result),

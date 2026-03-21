@@ -146,3 +146,10 @@ def test_service_generates_explanation_artifacts() -> None:
     assert explanation["model_input_image"] is not None
     assert explanation["attention_overlay_image"] is not None
     assert explanation["attention_layer"] != "unavailable"
+    assert explanation["focus_pattern"] in {
+        "compact",
+        "moderately concentrated",
+        "broad",
+        "diffuse",
+    }
+    assert 0.0 <= float(explanation["high_attention_threshold"]) <= 1.0

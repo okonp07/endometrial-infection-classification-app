@@ -532,6 +532,7 @@ def _build_split_distribution_frame(summary: dict[str, Any]) -> pd.DataFrame:
                     "split": split_name.title(),
                     "class": class_name.title(),
                     "count": int(count),
+                    "split_class": f"{split_name.title()} - {class_name.title()}",
                 }
             )
     return pd.DataFrame(rows)
@@ -652,12 +653,20 @@ def _split_strategy_markdown(summary: dict[str, Any]) -> str:
     validation_total = sum(int(count) for count in split_counts.get("validation", {}).values())
     test_total = sum(int(count) for count in split_counts.get("test", {}).values())
     threshold = summary.get("data_quality", {}).get("near_duplicate_threshold", "N/A")
+    train_infected = split_counts.get("train", {}).get("infected", "N/A")
+    train_uninfected = split_counts.get("train", {}).get("uninfected", "N/A")
+    validation_infected = split_counts.get("validation", {}).get("infected", "N/A")
+    validation_uninfected = split_counts.get("validation", {}).get("uninfected", "N/A")
+    test_infected = split_counts.get("test", {}).get("infected", "N/A")
+    test_uninfected = split_counts.get("test", {}).get("uninfected", "N/A")
 
     return f"""
 <span class="section-kicker">Partition Protocol</span>
 ## Curated split composition
 
 The cleaned corpus was partitioned into **{train_total} training**, **{validation_total} validation**, and **{test_total} test** images. Class balance was preserved across the three partitions, and visually related scans were assigned at the similarity-group level so they would not be dispersed across train and evaluation subsets.
+
+Per-class counts are: **train = {train_infected} infected / {train_uninfected} uninfected**, **validation = {validation_infected} / {validation_uninfected}**, and **test = {test_infected} / {test_uninfected}**.
 
 The grouped partitioning logic was applied with a perceptual-similarity threshold of **{threshold}**, which makes the split protocol more defensible for research reporting than a simple image-level random split.
 """
@@ -1195,13 +1204,22 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                         )
                         gr.BarPlot(
                             value=split_distribution_frame,
-                            x="split",
+                            x="split_class",
                             y="count",
                             color="class",
                             color_map={"Infected": "#0e4d73", "Uninfected": "#178b76"},
                             y_title="Images",
-                            x_title="Split",
+                            x_title="Partition / Class",
                             y_lim=split_chart_limit,
+                            sort=[
+                                "Train - Infected",
+                                "Train - Uninfected",
+                                "Validation - Infected",
+                                "Validation - Uninfected",
+                                "Test - Infected",
+                                "Test - Uninfected",
+                            ],
+                            x_label_angle=-20,
                             show_fullscreen_button=False,
                             show_export_button=False,
                         )

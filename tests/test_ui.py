@@ -74,6 +74,14 @@ def test_eda_frames_match_expected_project_counts() -> None:
 
     assert int(class_frame["count"].sum()) == 1560
     assert int(split_frame["count"].sum()) == 1560
+    assert set(split_frame["split_class"]) == {
+        "Train - Infected",
+        "Train - Uninfected",
+        "Validation - Infected",
+        "Validation - Uninfected",
+        "Test - Infected",
+        "Test - Uninfected",
+    }
     assert summary["raw_counts"] == {"infected": 781, "uninfected": 791}
     assert summary["data_quality"]["near_duplicate_threshold"] >= 4
     assert "audit_artifacts" in summary

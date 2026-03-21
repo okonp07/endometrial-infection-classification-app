@@ -279,10 +279,11 @@ Future contributors should:
 
 ## Acknowledgment requirement
 
-Any future work, derivative implementation, enrichment effort, publication, presentation, or adaptation based materially on this project should acknowledge:
+Any future work, derivative implementation, enrichment effort, publication, presentation, or adaptation based materially on this project should acknowledge the project authors:
 
 - **Okon Prince**
 - **Dr. Obi Cajetan**
+- **Joseph Edet**
 
 Where appropriate, that acknowledgment should appear in the repository, documentation, publication, presentation, or deployed product notes.
 

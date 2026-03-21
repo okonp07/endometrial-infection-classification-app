@@ -86,7 +86,8 @@ button[role="tab"][aria-selected="true"] {
 .hero-copy,
 .hero-banner-wrap,
 .panel-card,
-.author-copy-card {
+.author-copy-card,
+.author-card {
     background: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(9, 45, 70, 0.08);
     border-radius: 28px;
@@ -377,26 +378,53 @@ button[role="tab"][aria-selected="true"] {
 }
 
 .author-row {
-    align-items: center;
+    align-items: stretch;
 }
 
-.author-image-column {
+.author-card {
+    height: 100%;
+}
+
+.author-placeholder {
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
+    width: min(220px, 100%);
+    aspect-ratio: 1 / 1;
+    margin: 0 auto 1rem;
+    border-radius: 28px;
+    border: 2px dashed rgba(14, 77, 115, 0.22);
+    background: linear-gradient(135deg, rgba(14, 77, 115, 0.08), rgba(23, 139, 118, 0.12));
+    color: var(--brand-blue-deep);
+    text-align: center;
+    font-weight: 700;
+    padding: 1rem;
 }
 
-.author-photo img {
-    width: 100%;
-    max-width: 270px;
-    margin: 0 auto;
-    border-radius: 999px;
-    border: 6px solid rgba(23, 139, 118, 0.12);
-    box-shadow: 0 18px 46px rgba(18, 36, 45, 0.16);
+.author-placeholder span {
+    display: block;
+    margin-top: 0.45rem;
+    color: var(--brand-slate);
+    font-size: 0.88rem;
+    font-weight: 600;
 }
 
-.author-copy-card h2 {
+.author-card h3 {
     margin-top: 0 !important;
+    margin-bottom: 0.35rem !important;
+    color: var(--brand-blue-deep);
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+}
+
+.author-card p {
+    color: var(--brand-slate);
+    line-height: 1.75;
+}
+
+.author-card .author-role {
+    color: var(--brand-green);
+    font-weight: 700;
+    margin-bottom: 0.7rem;
 }
 
 .footer-note {
@@ -427,7 +455,7 @@ FOOTER_HTML = """
 <div class="footer-note">
     <p><strong>&copy; Okon Prince, 2026</strong></p>
     <p>
-        This project is based on research work by Dr. Obi Cajetan of the University of Calabar Teaching Hospital and Prince Okon.
+        This project is based on research work by Okon Prince, Dr. Obi Cajetan of the University of Calabar Teaching Hospital, and Joseph Edet of WorldQuant University.
         It is covered by the MIT License, and the authors should be acknowledged if the product or methods are referenced in future research.
     </p>
     <p>Enquiries: okonp07@gmail.com</p>
@@ -854,20 +882,66 @@ Future work should enrich the project without weakening its transparency. Improv
 
 
 AUTHOR_MARKDOWN = """
-## About the Author
+## About the Authors
 
-**Okon Prince**  
-Senior Data Scientist at MIVA Open University | AI Engineer & Data Scientist
+This project currently credits three authors. The image blocks below are placeholders showing where each author's profile image can be added later.
+"""
 
-I design and deploy end-to-end data systems that turn raw data into production-ready intelligence.
 
-My core stack includes Python, Streamlit, BigQuery, Supabase, Hugging Face, PySpark, SQL, Machine Learning, LLMs, and Transformers.
+AUTHOR_PROFILES = [
+    {
+        "name": "Okon Prince",
+        "role": "Senior Data Scientist, MIVA Open University",
+        "placeholder_label": "Image placeholder",
+        "bio": (
+            "Placeholder bio: add a short profile describing Okon Prince's role in the conception of the "
+            "research, the machine-learning workflow, the productionization of the application, and the "
+            "translation of the work into a deployable AI system."
+        ),
+    },
+    {
+        "name": "Dr. Obi Cajetan",
+        "role": "University of Calabar Teaching Hospital",
+        "placeholder_label": "Image placeholder",
+        "bio": (
+            "Placeholder bio: add a short profile describing Dr. Obi Cajetan's clinical, medical, or "
+            "research contribution to the project, including subject-matter leadership, data context, and "
+            "the domain relevance of the endometrial infection study."
+        ),
+    },
+    {
+        "name": "Joseph Edet",
+        "role": "WorldQuant University",
+        "placeholder_label": "Image placeholder",
+        "bio": (
+            "Placeholder bio: add a short profile describing Joseph Edet's role in the research support, "
+            "analytical contribution, technical collaboration, or future extension of the endometrial "
+            "classification project."
+        ),
+    },
+]
 
-My work spans risk scoring systems, A/B testing, traditional and AI-powered dashboards, RAG pipelines, predictive analytics, LLM-based solutions, and AI research.
 
-Currently, I work as a Senior Data Scientist in the Department of Research and Development at MIVA Open University, where I carry out AI and machine learning research and build intelligent systems that drive analytics, decision support, and scalable AI innovation.
+def _author_placeholder_html(profile: dict[str, str]) -> str:
+    name = html.escape(profile["name"])
+    placeholder_label = html.escape(profile["placeholder_label"])
+    return f"""
+    <div class="author-placeholder">
+        <div>
+            {placeholder_label}
+            <span>{name}</span>
+        </div>
+    </div>
+    """
 
-I believe: models are trained, systems are engineered, and impact is delivered.
+
+def _author_card_markdown(profile: dict[str, str]) -> str:
+    return f"""
+### {profile["name"]}
+
+<div class="author-role">{profile["role"]}</div>
+
+{profile["bio"]}
 """
 
 
@@ -963,7 +1037,6 @@ def build_ui(service: PredictionService) -> gr.Blocks:
     project_root = service.settings.project_root
     assets_dir = project_root / "assets"
     banner_path = assets_dir / "banner" / "endometrium_banner.png"
-    author_path = assets_dir / "author" / "okon-prince.png"
     training_summary = _load_training_summary(project_root)
     training_history = _load_training_history(project_root)
     class_distribution_frame = _build_class_distribution_frame(training_summary)
@@ -1360,18 +1433,12 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                     _project_about_markdown(training_summary),
                     elem_classes="about-copy",
                 )
+                gr.Markdown(AUTHOR_MARKDOWN, elem_classes="author-copy")
                 with gr.Row(elem_classes="author-row"):
-                    with gr.Column(scale=2, elem_classes="author-image-column"):
-                        gr.Image(
-                            value=str(author_path),
-                            show_label=False,
-                            interactive=False,
-                            container=False,
-                            show_download_button=False,
-                            elem_classes="author-photo",
-                        )
-                    with gr.Column(scale=5, elem_classes="author-copy-card"):
-                        gr.Markdown(AUTHOR_MARKDOWN, elem_classes="author-copy")
+                    for profile in AUTHOR_PROFILES:
+                        with gr.Column(scale=1, elem_classes="author-card"):
+                            gr.HTML(_author_placeholder_html(profile))
+                            gr.Markdown(_author_card_markdown(profile), elem_classes="author-copy")
             with gr.Tab("Future Dev"):
                 gr.Markdown(
                     _future_dev_markdown(),

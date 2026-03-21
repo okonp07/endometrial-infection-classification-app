@@ -10,6 +10,7 @@ from PIL import Image
 from endometrial_app.config import Settings
 from endometrial_app.service import PredictionService
 from endometrial_app.ui import (
+    AUTHOR_PROFILES,
     _build_class_distribution_frame,
     _build_demo_bundle,
     _build_demo_profile_frame,
@@ -54,8 +55,20 @@ def test_future_development_assets_exist() -> None:
     roadmap_path = project_root / "future development.md"
 
     assert roadmap_path.exists()
-    assert "Future Development" in roadmap_path.read_text(encoding="utf-8")
+    roadmap_text = roadmap_path.read_text(encoding="utf-8")
+    assert "Future Development" in roadmap_text
+    assert "Joseph Edet" in roadmap_text
     assert "future development.md" in _future_dev_markdown()
+
+
+def test_author_profiles_cover_three_authors() -> None:
+    author_names = {profile["name"] for profile in AUTHOR_PROFILES}
+
+    assert author_names == {
+        "Okon Prince",
+        "Dr. Obi Cajetan",
+        "Joseph Edet",
+    }
 
 
 def test_download_bundle_contains_samples_and_manifest() -> None:

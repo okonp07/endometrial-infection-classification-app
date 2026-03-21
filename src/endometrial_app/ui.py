@@ -155,14 +155,34 @@ button[role="tab"][aria-selected="true"] {
 
 .hero-banner-wrap {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(223, 244, 238, 0.72) 100%);
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0.95rem !important;
+    min-height: 100%;
+}
+
+.hero-banner {
+    width: 100%;
+    min-height: 100%;
+    display: flex;
+    align-items: stretch;
+}
+
+.hero-banner > div,
+.hero-banner .image-container,
+.hero-banner [data-testid="image"] {
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .hero-banner img {
     width: 100%;
-    min-height: 100%;
+    height: 100% !important;
     border-radius: 22px;
     object-fit: cover;
     box-shadow: 0 16px 34px rgba(18, 36, 45, 0.16);
+    display: block;
 }
 
 .section-kicker {
@@ -834,6 +854,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             interactive=False,
                             container=False,
                             show_download_button=False,
+                            show_fullscreen_button=False,
                             elem_classes="hero-banner",
                         )
 

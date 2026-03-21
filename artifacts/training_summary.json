@@ -1,5 +1,59 @@
 {
   "pretrained_weights_loaded": true,
+  "raw_counts": {
+    "infected": 781,
+    "uninfected": 791
+  },
+  "data_quality": {
+    "original_image_count": 1572,
+    "valid_image_count": 1572,
+    "invalid_images_removed": 0,
+    "exact_duplicates_removed": 12,
+    "near_duplicate_hash": "difference-hash-8x8",
+    "near_duplicate_threshold": 4,
+    "split_strategy": "group-aware split over perceptual similarity clusters",
+    "similarity_groups": {
+      "group_count": 1414,
+      "multi_image_group_count": 111,
+      "images_in_multi_image_groups": 257,
+      "largest_group_size": 4,
+      "per_class_group_count": {
+        "infected": 727,
+        "uninfected": 687
+      }
+    },
+    "cross_split_similarity_audit": {
+      "threshold": 4,
+      "nearest_distance_by_split": {
+        "infected_validation": {
+          "min": 5,
+          "median": 9.0,
+          "max": 21
+        },
+        "infected_test": {
+          "min": 5,
+          "median": 8.0,
+          "max": 16
+        },
+        "uninfected_validation": {
+          "min": 5,
+          "median": 8.0,
+          "max": 15
+        },
+        "uninfected_test": {
+          "min": 5,
+          "median": 8.0,
+          "max": 13
+        }
+      },
+      "items_with_nearest_train_distance_le_threshold": {
+        "infected_validation": 0,
+        "infected_test": 0,
+        "uninfected_validation": 0,
+        "uninfected_test": 0
+      }
+    }
+  },
   "clean_counts": {
     "infected": 779,
     "uninfected": 781
@@ -21,9 +75,16 @@
   "test_metrics": {
     "accuracy": 1.0,
     "auc": 1.0,
-    "loss": 0.003170173382386565,
+    "loss": 0.006435070652514696,
     "precision": 1.0,
     "recall": 1.0
+  },
+  "evaluation_scope": "Internal held-out evaluation after exact-duplicate removal and grouped perceptual-similarity splitting. External validation, repeated grouped resampling, and study-level partitioning are still recommended.",
+  "audit_artifacts": {
+    "raw_manifest_path": "/Users/researchanddevelopment2/Documents/Zindi/endometrial-infection-zero-cost-app/artifacts/audit/raw_manifest.csv",
+    "clean_manifest_path": "/Users/researchanddevelopment2/Documents/Zindi/endometrial-infection-zero-cost-app/artifacts/audit/clean_manifest.csv",
+    "grouped_manifest_path": "/Users/researchanddevelopment2/Documents/Zindi/endometrial-infection-zero-cost-app/artifacts/audit/grouped_manifest.csv",
+    "split_manifest_path": "/Users/researchanddevelopment2/Documents/Zindi/endometrial-infection-zero-cost-app/artifacts/audit/split_manifest.csv"
   },
   "model_path": "/Users/researchanddevelopment2/Documents/Zindi/endometrial-infection-zero-cost-app/models/endometrial_classifier.keras",
   "labels_path": "/Users/researchanddevelopment2/Documents/Zindi/endometrial-infection-zero-cost-app/artifacts/class_names.json"

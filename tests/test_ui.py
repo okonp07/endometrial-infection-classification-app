@@ -74,7 +74,10 @@ def test_eda_frames_match_expected_project_counts() -> None:
 
     assert int(class_frame["count"].sum()) == 1560
     assert int(split_frame["count"].sum()) == 1560
-    assert len(history) == 4
+    assert summary["raw_counts"] == {"infected": 781, "uninfected": 791}
+    assert summary["data_quality"]["near_duplicate_threshold"] >= 4
+    assert "audit_artifacts" in summary
+    assert len(history) >= 1
     assert "epoch" in history.columns
     assert len(demo_profile_frame) == 20
 

@@ -587,13 +587,109 @@ def _safe_chart_limit(frame: pd.DataFrame, column: str, minimum: float = 1.0) ->
     return [0.0, padded_maximum]
 
 
+def _research_safeguards_markdown(summary: dict[str, Any]) -> str:
+    data_quality = summary.get("data_quality", {})
+    similarity_groups = data_quality.get("similarity_groups", {})
+    exact_duplicates_removed = data_quality.get("exact_duplicates_removed", "N/A")
+    threshold = data_quality.get("near_duplicate_threshold", "N/A")
+    multi_image_group_count = similarity_groups.get("multi_image_group_count", "N/A")
+    images_in_multi_image_groups = similarity_groups.get("images_in_multi_image_groups", "N/A")
+    audit_artifacts = summary.get("audit_artifacts", {})
+    audit_note = ""
+    if audit_artifacts:
+        audit_note = (
+            "\nThe raw, cleaned, grouped, and split manifests for this run are also exported as audit artifacts so "
+            "the evaluation protocol can be inspected outside the UI."
+        )
+
+    return f"""
+<span class="section-kicker">Research Safeguards</span>
+## Leakage control
+
+This training run removed **{exact_duplicates_removed} exact duplicates** and then used a **group-aware perceptual-similarity split** so visually similar scans would stay in the same partition instead of leaking across train, validation, and test.
+
+The similarity audit used a **difference-hash threshold of {threshold}** and detected **{multi_image_group_count} multi-image similarity groups** covering **{images_in_multi_image_groups} scans**. This makes the reported test metrics stricter than a simple random image-level split.{audit_note}
+"""
+
+
+def _class_distribution_markdown(summary: dict[str, Any]) -> str:
+    raw_counts = summary.get("raw_counts", {})
+    clean_counts = summary.get("clean_counts", {})
+    data_quality = summary.get("data_quality", {})
+    raw_infected = raw_counts.get("infected", "N/A")
+    raw_uninfected = raw_counts.get("uninfected", "N/A")
+    clean_infected = clean_counts.get("infected", "N/A")
+    clean_uninfected = clean_counts.get("uninfected", "N/A")
+    exact_duplicates_removed = data_quality.get("exact_duplicates_removed", "N/A")
+
+    return f"""
+<span class="section-kicker">Dataset Balance</span>
+## Class distribution
+
+The raw archive contributed **{raw_infected} infected** and **{raw_uninfected} uninfected** valid images. After removing **{exact_duplicates_removed} exact duplicates**, the curated production dataset contains **{clean_infected} infected** and **{clean_uninfected} uninfected** scans.
+
+This means the dataset remains very close to balanced, even though the cleaned counts are not perfectly identical. The chart below uses a zero-based y-axis so small differences are not visually exaggerated.
+"""
+
+
+def _held_out_evaluation_markdown(summary: dict[str, Any]) -> str:
+    data_quality = summary.get("data_quality", {})
+    threshold = data_quality.get("near_duplicate_threshold", "N/A")
+    metrics = summary.get("test_metrics", {})
+    perfect_internal_result = (
+        metrics
+        and all(float(metrics.get(metric, 0.0)) >= 0.999 for metric in ["accuracy", "auc", "precision", "recall"])
+    )
+    caution = ""
+    if perfect_internal_result:
+        caution = (
+            "\nThis internal split still produces near-perfect scores even after the stricter grouped similarity controls. "
+            "That is encouraging, but it should still be interpreted as an internal result rather than proof of broad external generalization."
+        )
+
+    return f"""
+<span class="section-kicker">Held-Out Evaluation</span>
+## Test metrics
+
+These metrics summarize the current production model on the reserved test split after exact-duplicate removal and a similarity-group split designed to reduce train/test leakage. The current grouped audit uses a perceptual-similarity threshold of **{threshold}**.{caution}
+"""
+
+
+def _interpretation_note_markdown(summary: dict[str, Any]) -> str:
+    data_quality = summary.get("data_quality", {})
+    threshold = data_quality.get("near_duplicate_threshold", "N/A")
+    evaluation_scope = summary.get(
+        "evaluation_scope",
+        "This should be treated as an internal held-out evaluation rather than external validation.",
+    )
+    return f"""
+<span class="section-kicker">Interpretation Note</span>
+## Reading the evaluation carefully
+
+The current evaluation uses a grouped split with a perceptual-similarity threshold of **{threshold}**, which is materially stronger than a naive random image split. Even so, the most defensible next steps are repeated grouped resampling, external validation, and, where possible, study-level or patient-level partitioning.
+
+{evaluation_scope}
+"""
+
+
 def _project_about_markdown(summary: dict[str, Any]) -> str:
+    raw_counts = summary.get("raw_counts", {})
     clean_counts = summary.get("clean_counts", {})
     split_counts = summary.get("split_counts", {})
+    data_quality = summary.get("data_quality", {})
+    raw_infected = raw_counts.get("infected", "N/A")
+    raw_uninfected = raw_counts.get("uninfected", "N/A")
     infected_count = clean_counts.get("infected", "N/A")
     uninfected_count = clean_counts.get("uninfected", "N/A")
     test_infected = split_counts.get("test", {}).get("infected", "N/A")
     test_uninfected = split_counts.get("test", {}).get("uninfected", "N/A")
+    exact_duplicates_removed = data_quality.get("exact_duplicates_removed", "N/A")
+    split_strategy = data_quality.get("split_strategy", "a structured train, validation, and test workflow")
+    threshold = data_quality.get("near_duplicate_threshold", "N/A")
+    evaluation_scope = summary.get(
+        "evaluation_scope",
+        "The current results should be treated as internal held-out evaluation rather than external validation.",
+    )
 
     return f"""
 ## About the Project
@@ -612,7 +708,7 @@ This matters not only for model development, but also for translational impact: 
 
 ### How the solution works
 
-1. A user uploads an endometrial scan image or selects one of the built-in demo samples.
+1. A user uploads an endometrial scan image or downloads the demo test-image bundle for structured app testing.
 2. The app preprocesses the image into the format expected by the TensorFlow model.
 3. The trained classifier scores the image against the two target classes: `infected` and `uninfected`.
 4. The interface returns the predicted class, the model confidence, a class-probability breakdown, and inference metadata.
@@ -620,7 +716,11 @@ This matters not only for model development, but also for translational impact: 
 
 ### Data and evaluation summary
 
-The deployed model was trained from curated archive data after duplicate handling and split generation. The current production bundle was prepared from **{infected_count} infected** images and **{uninfected_count} uninfected** images, with a held-out test set of **{test_infected} infected** and **{test_uninfected} uninfected** images. This makes the deployment grounded in a proper train, validation, and test workflow rather than a notebook-only demonstration.
+The deployed model was trained from curated archive data after duplicate handling and split generation. The raw archive contributed **{raw_infected} infected** and **{raw_uninfected} uninfected** valid images. After curation, the current production bundle was prepared from **{infected_count} infected** images and **{uninfected_count} uninfected** images, with a held-out test set of **{test_infected} infected** and **{test_uninfected} uninfected** images.
+
+To improve research rigor, the pipeline removed **{exact_duplicates_removed} exact duplicate files** and used **{split_strategy}** rather than a plain random image-level split. It also grouped near-duplicate scans using a perceptual-similarity threshold of **{threshold}** before assigning train, validation, and test partitions. This helps reduce the risk that near-identical scans inflate the reported performance.
+
+{evaluation_scope}
 
 ### What the output means
 
@@ -1013,7 +1113,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                     """
                     <div class="eda-note">
                         <p>
-                            The EDA view combines tracked training summaries with representative demo-image statistics so users can inspect the project beyond the final prediction screen.
+                            The EDA view combines tracked training summaries with representative demo-image statistics so users can inspect the project beyond the final prediction screen. It also surfaces the leakage-control safeguards used to make the reported metrics more trustworthy for research.
                         </p>
                     </div>
                     """
@@ -1021,12 +1121,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                 with gr.Row():
                     with gr.Column(scale=5, elem_classes="panel-card"):
                         gr.Markdown(
-                            """
-                            <span class="section-kicker">Dataset Balance</span>
-                            ## Class distribution
-
-                            This chart shows the cleaned number of infected and uninfected images used to prepare the production model. After duplicate handling, the deployed dataset contains `779 infected` and `781 uninfected` scans, so it is still very close to balanced even though the counts are not perfectly identical.
-                            """,
+                            _class_distribution_markdown(training_summary),
                             elem_classes="helper-copy",
                         )
                         gr.BarPlot(
@@ -1047,7 +1142,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             <span class="section-kicker">Split Strategy</span>
                             ## Train, validation, test
 
-                            This view shows how the curated dataset was split to support robust model development and held-out evaluation.
+                            This view shows how the curated dataset was split to support robust model development and held-out evaluation. The production workflow keeps perceptually similar scans in the same partition to reduce leakage risk.
                             """,
                             elem_classes="helper-copy",
                         )
@@ -1115,12 +1210,12 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                 with gr.Row():
                     with gr.Column(scale=4, elem_classes="panel-card"):
                         gr.Markdown(
-                            """
-                            <span class="section-kicker">Held-Out Evaluation</span>
-                            ## Test metrics
-
-                            These metrics summarize the current production model on the reserved test split.
-                            """,
+                            _research_safeguards_markdown(training_summary),
+                            elem_classes="helper-copy",
+                        )
+                    with gr.Column(scale=6, elem_classes="panel-card"):
+                        gr.Markdown(
+                            _held_out_evaluation_markdown(training_summary),
                             elem_classes="helper-copy",
                         )
                         gr.BarPlot(
@@ -1133,7 +1228,8 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             show_fullscreen_button=False,
                             show_export_button=False,
                         )
-                    with gr.Column(scale=6, elem_classes="panel-card"):
+                with gr.Row():
+                    with gr.Column(scale=4, elem_classes="panel-card"):
                         gr.Markdown(
                             """
                             <span class="section-kicker">Representative Samples</span>
@@ -1149,6 +1245,19 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             wrap=True,
                             row_count=len(demo_profile_frame),
                             col_count=len(demo_profile_frame.columns),
+                        )
+                    with gr.Column(scale=6, elem_classes="panel-card"):
+                        gr.Markdown(
+                            _interpretation_note_markdown(training_summary),
+                            elem_classes="helper-copy",
+                        )
+                        gr.Markdown(
+                            """
+                            - A perfect score on one held-out split does not automatically guarantee broad generalization.
+                            - Group-aware splitting is stronger than naive random splitting, but external validation is still the gold standard.
+                            - This app now surfaces the safeguards used so readers can assess the evaluation protocol with more confidence.
+                            """,
+                            elem_classes="helper-copy",
                         )
             with gr.Tab("About"):
                 gr.Markdown(

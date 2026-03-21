@@ -5,17 +5,30 @@ import hashlib
 import json
 import random
 import shutil
+import sys
 import zipfile
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from PIL import Image, ImageFile
-from sklearn.model_selection import train_test_split
 
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = PROJECT_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from endometrial_app.data_prep import (
+    assign_grouped_splits,
+    assign_similarity_groups,
+    build_similarity_group_summary,
+    compute_difference_hash,
+    summarize_cross_split_similarity,
+)
 
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -57,6 +70,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--head-epochs", type=int, default=5)
     parser.add_argument("--fine-tune-epochs", type=int, default=3)
+    parser.add_argument(
+        "--near-duplicate-threshold",
+        type=int,
+        default=4,
+        help="Maximum dHash Hamming distance treated as a near-duplicate for grouped splitting.",
+    )
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
 
@@ -104,10 +123,12 @@ def inspect_image(image_path: Path, label: str) -> dict[str, object]:
             image.load()
             record["width"] = image.width
             record["height"] = image.height
+            record["dhash"] = compute_difference_hash(image)
         record["is_valid"] = True
     except Exception as exc:
         record["width"] = None
         record["height"] = None
+        record["dhash"] = None
         record["is_valid"] = False
         record["error"] = str(exc)
 
@@ -143,32 +164,33 @@ def deduplicate_manifest(manifest_df: pd.DataFrame) -> pd.DataFrame:
     return clean_df
 
 
-def materialize_splits(clean_df: pd.DataFrame, split_dir: Path, seed: int) -> dict[str, pd.DataFrame]:
-    train_df, temp_df = train_test_split(
-        clean_df,
-        test_size=0.30,
-        stratify=clean_df["label"],
-        random_state=seed,
-    )
-    val_df, test_df = train_test_split(
-        temp_df,
-        test_size=0.50,
-        stratify=temp_df["label"],
-        random_state=seed,
-    )
-
+def materialize_splits(
+    grouped_df: pd.DataFrame,
+    split_dir: Path,
+    seed: int,
+) -> dict[str, pd.DataFrame]:
     if split_dir.exists():
         shutil.rmtree(split_dir)
 
-    split_frames = {"train": train_df, "validation": val_df, "test": test_df}
+    split_assignments = assign_grouped_splits(grouped_df, seed=seed)
+    split_frames = {
+        split_name: split_assignments.loc[split_assignments["split"] == split_name].reset_index(drop=True)
+        for split_name in ["train", "validation", "test"]
+    }
     for split_name, frame in split_frames.items():
+        frame = frame.copy()
+        target_paths: dict[int, str] = {}
         for label in ["infected", "uninfected"]:
             class_dir = split_dir / split_name / label
             class_dir.mkdir(parents=True, exist_ok=True)
             subset = frame.loc[frame["label"] == label]
-            for row in subset.itertuples(index=False):
+            for row in subset.itertuples():
                 target_name = f"{row.sha256[:12]}_{row.file_name}"
-                shutil.copy2(Path(row.source_path), class_dir / target_name)
+                target_path = class_dir / target_name
+                shutil.copy2(Path(row.source_path), target_path)
+                target_paths[int(row.Index)] = str(target_path)
+        frame["target_path"] = frame.index.map(target_paths.get)
+        split_frames[split_name] = frame
 
     return split_frames
 
@@ -247,14 +269,34 @@ def main() -> None:
     workspace_dir = args.workspace_dir.resolve()
     extracted_dir = workspace_dir / "extracted"
     split_dir = workspace_dir / "splits"
+    audit_dir = args.summary_path.resolve().parent / "audit"
     extracted_dir.mkdir(parents=True, exist_ok=True)
+    audit_dir.mkdir(parents=True, exist_ok=True)
 
     extract_archive(args.infected_zip.resolve(), "infected", extracted_dir)
     extract_archive(args.uninfected_zip.resolve(), "uninfected", extracted_dir)
 
     manifest_df = build_manifest(extracted_dir)
+    raw_manifest_path = audit_dir / "raw_manifest.csv"
+    manifest_df.to_csv(raw_manifest_path, index=False)
     clean_df = deduplicate_manifest(manifest_df)
-    split_frames = materialize_splits(clean_df, split_dir, args.seed)
+    clean_manifest_path = audit_dir / "clean_manifest.csv"
+    clean_df.to_csv(clean_manifest_path, index=False)
+    grouped_df = assign_similarity_groups(
+        clean_df,
+        threshold=args.near_duplicate_threshold,
+    )
+    grouped_manifest_path = audit_dir / "grouped_manifest.csv"
+    grouped_df.to_csv(grouped_manifest_path, index=False)
+    split_frames = materialize_splits(grouped_df, split_dir, args.seed)
+    split_audit_df = pd.concat(split_frames.values(), ignore_index=True)
+    split_manifest_path = audit_dir / "split_manifest.csv"
+    split_audit_df.to_csv(split_manifest_path, index=False)
+    similarity_summary = build_similarity_group_summary(grouped_df)
+    cross_split_similarity = summarize_cross_split_similarity(
+        split_audit_df,
+        threshold=args.near_duplicate_threshold,
+    )
 
     train_ds = make_dataset(split_dir / "train", args.image_size, args.batch_size, True, args.seed)
     val_ds = make_dataset(split_dir / "validation", args.image_size, args.batch_size, False, args.seed)
@@ -336,12 +378,34 @@ def main() -> None:
 
     summary = {
         "pretrained_weights_loaded": pretrained_weights_loaded,
+        "raw_counts": manifest_df.loc[manifest_df["is_valid"], "label"].value_counts().sort_index().to_dict(),
+        "data_quality": {
+            "original_image_count": int(manifest_df.shape[0]),
+            "valid_image_count": int(manifest_df["is_valid"].sum()),
+            "invalid_images_removed": int((~manifest_df["is_valid"]).sum()),
+            "exact_duplicates_removed": int(manifest_df["is_valid"].sum() - clean_df.shape[0]),
+            "near_duplicate_hash": "difference-hash-8x8",
+            "near_duplicate_threshold": int(args.near_duplicate_threshold),
+            "split_strategy": "group-aware split over perceptual similarity clusters",
+            "similarity_groups": similarity_summary,
+            "cross_split_similarity_audit": cross_split_similarity,
+        },
         "clean_counts": clean_df["label"].value_counts().sort_index().to_dict(),
         "split_counts": {
             split_name: frame["label"].value_counts().sort_index().to_dict()
             for split_name, frame in split_frames.items()
         },
         "test_metrics": {key: float(value) for key, value in test_metrics.items()},
+        "evaluation_scope": (
+            "Internal held-out evaluation after exact-duplicate removal and grouped perceptual-similarity splitting. "
+            "External validation, repeated grouped resampling, and study-level partitioning are still recommended."
+        ),
+        "audit_artifacts": {
+            "raw_manifest_path": str(raw_manifest_path),
+            "clean_manifest_path": str(clean_manifest_path),
+            "grouped_manifest_path": str(grouped_manifest_path),
+            "split_manifest_path": str(split_manifest_path),
+        },
         "model_path": str(args.output_model.resolve()),
         "labels_path": str(args.labels_path.resolve()),
     }

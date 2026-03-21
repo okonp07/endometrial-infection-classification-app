@@ -43,6 +43,7 @@ endometrial-infection-zero-cost-app/
 │   ├── .gitignore
 │   └── config
 ├── artifacts/
+│   ├── audit/
 │   └── class_names.json
 ├── docs/
 │   ├── deployment.md
@@ -61,6 +62,7 @@ endometrial-infection-zero-cost-app/
 │   └── ui.py
 ├── tests/
 │   ├── test_api.py
+│   ├── test_data_prep.py
 │   └── test_service.py
 ├── app.py
 ├── Dockerfile
@@ -122,11 +124,17 @@ That command will:
 
 - extract the images
 - remove exact duplicates
-- create train, validation, and test splits
+- build perceptual-similarity groups to reduce near-duplicate leakage
+- create train, validation, and test splits at the similarity-group level
 - train a MobileNetV2-based classifier
 - save the final model to `models/endometrial_classifier.keras`
 - write labels to `artifacts/class_names.json`
-- write a training summary to `artifacts/training_summary.json`
+- write a training summary to `artifacts/training_summary.json`, including leakage-control metadata
+- export raw, cleaned, grouped, and split manifests to `artifacts/audit/` for auditability
+
+The default grouped-split guardrail uses a dHash Hamming-distance threshold of `4`, which is stricter than the earlier lighter split and is intended to reduce the chance that near-identical frames end up across train and test.
+
+Even with these safeguards, the reported results should still be treated as internal held-out evaluation rather than final proof of external generalization. For research-facing use, repeated grouped resampling, study-level partitioning, and external validation are still recommended.
 
 ## Run locally
 

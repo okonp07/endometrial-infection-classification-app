@@ -469,7 +469,7 @@ FOOTER_HTML = """
 <div class="footer-note">
     <p><strong>&copy; Okon Prince, 2026</strong></p>
     <p>
-        This project is based on research work by Okon Prince, Dr. Obi Cajetan of the University of Calabar Teaching Hospital, and Joseph Edet of WorldQuant University.
+        This project is based on research work by Okon Prince of Miva Open University, Dr. Obi Cajetan of the University of Calabar Teaching Hospital, and Joseph Edet of WorldQuant University.
         It is covered by the MIT License, and the authors should be acknowledged if the product or methods are referenced in future research.
     </p>
     <p>Enquiries: okonp07@gmail.com</p>

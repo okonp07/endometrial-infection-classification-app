@@ -68,6 +68,7 @@ endometrial-infection-zero-cost-app/
 ├── Dockerfile
 ├── Makefile
 ├── dvc.yaml
+├── future development.md
 ├── requirements-ci.txt
 └── requirements.txt
 ```
@@ -135,6 +136,10 @@ That command will:
 The default grouped-split guardrail uses a dHash Hamming-distance threshold of `4`, which is stricter than the earlier lighter split and is intended to reduce the chance that near-identical frames end up across train and test.
 
 Even with these safeguards, the reported results should still be treated as internal held-out evaluation rather than final proof of external generalization. For research-facing use, repeated grouped resampling, study-level partitioning, and external validation are still recommended.
+
+## Future roadmap
+
+The repository roadmap for future enrichment is documented in [`future development.md`](future%20development.md). It covers likely next steps in evaluation design, interpretability, multimodal expansion, robustness testing, clinician-in-the-loop review, and deployment hardening.
 
 ## Run locally
 

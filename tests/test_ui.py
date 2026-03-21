@@ -14,6 +14,7 @@ from endometrial_app.ui import (
     _build_demo_bundle,
     _build_demo_profile_frame,
     _build_split_distribution_frame,
+    _future_dev_markdown,
     _load_training_history,
     _load_training_summary,
     _safe_chart_limit,
@@ -46,6 +47,15 @@ def test_demo_sample_bundle_contains_twenty_images() -> None:
     samples_dir = Path(__file__).resolve().parents[1] / "assets" / "demo_samples"
     sample_images = sorted(samples_dir.glob("*.jpg"))
     assert len(sample_images) == 20
+
+
+def test_future_development_assets_exist() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    roadmap_path = project_root / "future development.md"
+
+    assert roadmap_path.exists()
+    assert "Future Development" in roadmap_path.read_text(encoding="utf-8")
+    assert "future development.md" in _future_dev_markdown()
 
 
 def test_download_bundle_contains_samples_and_manifest() -> None:

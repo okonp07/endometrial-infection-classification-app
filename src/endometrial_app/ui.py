@@ -15,6 +15,12 @@ from PIL import Image
 from endometrial_app.service import PredictionService
 
 
+FUTURE_DEVELOPMENT_URL = (
+    "https://github.com/okonp07/endometrial-infection-classification-app/blob/main/"
+    "future%20development.md"
+)
+
+
 CUSTOM_CSS = """
 :root {
     --brand-blue: #0e4d73;
@@ -807,6 +813,46 @@ This application is best understood as a **research and AI-assisted classificati
 """
 
 
+def _future_dev_markdown() -> str:
+    return f"""
+## Future Development
+
+This page highlights the main directions for future enrichment of the project and links to the full roadmap in the repository.
+
+### Full roadmap
+
+The detailed development roadmap is available here:
+
+[Open `future development.md`]({FUTURE_DEVELOPMENT_URL})
+
+### Priority development tracks
+
+1. **Stronger evaluation design**  
+   Move toward patient-level or study-level partitioning, repeated grouped resampling, and external validation so the evidence standard becomes stronger than internal held-out evaluation alone.
+
+2. **Clinically grounded model improvement**  
+   Explore region-of-interest localization, segmentation support, stronger interpretability validation, and uncertainty calibration so the model becomes more anatomically meaningful and more trustworthy.
+
+3. **Richer product capability**  
+   Add clinician-in-the-loop review workflows, structured audit exports, robust deployment controls, and potentially multimodal metadata support so the system becomes more useful in real research settings.
+
+4. **Expanded research scope**  
+   Benchmark stronger architectures, test robustness under distribution shift, and explore whether future datasets can support multi-class or severity-aware classification.
+
+### Recommended near-term sequence
+
+- recover or curate metadata that support study-level grouping
+- run an external validation experiment on an independent dataset
+- add calibration analysis and uncertainty-aware thresholding
+- strengthen the current explanation pipeline with additional interpretability methods
+- formalize experiment tracking so future model comparisons remain reproducible
+
+### Development philosophy
+
+Future work should enrich the project without weakening its transparency. Improvements should raise the quality of the evidence, the clarity of the outputs, and the usefulness of the system to researchers and clinicians.
+"""
+
+
 AUTHOR_MARKDOWN = """
 ## About the Author
 
@@ -1326,6 +1372,44 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                         )
                     with gr.Column(scale=5, elem_classes="author-copy-card"):
                         gr.Markdown(AUTHOR_MARKDOWN, elem_classes="author-copy")
+            with gr.Tab("Future Dev"):
+                gr.Markdown(
+                    _future_dev_markdown(),
+                    elem_classes="sample-copy",
+                )
+                with gr.Row():
+                    with gr.Column(scale=6, elem_classes="panel-card"):
+                        gr.Markdown(
+                            """
+                            <span class="section-kicker">Roadmap Highlights</span>
+                            ## Where the project can grow next
+
+                            The roadmap emphasizes stronger evaluation, richer clinical grounding, more robust deployment practice, and a more useful human-review workflow. The aim is not only to improve model performance, but also to improve evidence quality and research usability.
+                            """,
+                            elem_classes="helper-copy",
+                        )
+                        gr.Markdown(
+                            """
+                            - strengthen study-level and external validation
+                            - improve calibration, uncertainty handling, and explainability
+                            - explore ROI-focused and multimodal modeling
+                            - support clinician feedback loops and richer audit trails
+                            - benchmark stronger architectures under the same evaluation protocol
+                            """,
+                            elem_classes="helper-copy",
+                        )
+                    with gr.Column(scale=4, elem_classes="panel-card"):
+                        gr.Markdown(
+                            f"""
+                            <span class="section-kicker">Repository Guide</span>
+                            ## Open the full roadmap
+
+                            The complete future-development document lives in the repository as `future development.md`.
+
+                            [View the full roadmap on GitHub]({FUTURE_DEVELOPMENT_URL})
+                            """,
+                            elem_classes="helper-copy",
+                        )
 
         gr.HTML(FOOTER_HTML)
 

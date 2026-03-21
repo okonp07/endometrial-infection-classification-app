@@ -63,12 +63,16 @@ def test_future_development_assets_exist() -> None:
 
 def test_author_profiles_cover_three_authors() -> None:
     author_names = {profile["name"] for profile in AUTHOR_PROFILES}
+    prince_profile = next(profile for profile in AUTHOR_PROFILES if profile["name"] == "Okon Prince")
 
     assert author_names == {
         "Okon Prince",
         "Dr. Obi Cajetan",
         "Joseph Edet",
     }
+    assert prince_profile["image_asset"] == "author/okon-prince.png"
+    assert "MIVA Open University" in prince_profile["role"]
+    assert "production-ready intelligence" in prince_profile["bio"]
 
 
 def test_download_bundle_contains_samples_and_manifest() -> None:

@@ -385,6 +385,20 @@ button[role="tab"][aria-selected="true"] {
     height: 100%;
 }
 
+.author-photo {
+    width: min(220px, 100%);
+    margin: 0 auto 1rem;
+}
+
+.author-photo img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 28px;
+    border: 4px solid rgba(23, 139, 118, 0.14);
+    box-shadow: 0 18px 46px rgba(18, 36, 45, 0.16);
+}
+
 .author-placeholder {
     display: flex;
     align-items: center;
@@ -891,12 +905,18 @@ This project currently credits three authors. The image blocks below are placeho
 AUTHOR_PROFILES = [
     {
         "name": "Okon Prince",
-        "role": "Senior Data Scientist, MIVA Open University",
-        "placeholder_label": "Image placeholder",
+        "role": "Senior Data Scientist at MIVA Open University | AI Engineer & Data Scientist",
+        "image_asset": "author/okon-prince.png",
         "bio": (
-            "Placeholder bio: add a short profile describing Okon Prince's role in the conception of the "
-            "research, the machine-learning workflow, the productionization of the application, and the "
-            "translation of the work into a deployable AI system."
+            "I design and deploy end-to-end data systems that turn raw data into production-ready intelligence.\n\n"
+            "My core stack includes Python, Streamlit, BigQuery, Supabase, Hugging Face, PySpark, SQL, "
+            "Machine Learning, LLMs, and Transformers.\n\n"
+            "My work spans risk scoring systems, A/B testing, Traditional and AI-powered dashboards, RAG "
+            "pipelines, predictive analytics, LLM-based solutions and AI research.\n\n"
+            "Currently, I work as a Senior Data Scientist in the department of Research and Development at "
+            "MIVA Open University, where I carry out AI / ML Research and build intelligent systems that "
+            "drive analytics, decision support and scalable AI innovation.\n\n"
+            "I believe: models are trained, systems are engineered and impact is delivered."
         ),
     },
     {
@@ -943,6 +963,17 @@ def _author_card_markdown(profile: dict[str, str]) -> str:
 
 {profile["bio"]}
 """
+
+
+def _author_image_path(profile: dict[str, str], assets_dir: Path) -> Path | None:
+    image_asset = profile.get("image_asset")
+    if not image_asset:
+        return None
+
+    image_path = assets_dir / image_asset
+    if image_path.exists():
+        return image_path
+    return None
 
 
 def _prediction_placeholder_html() -> str:
@@ -1437,7 +1468,20 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                 with gr.Row(elem_classes="author-row"):
                     for profile in AUTHOR_PROFILES:
                         with gr.Column(scale=1, elem_classes="author-card"):
-                            gr.HTML(_author_placeholder_html(profile))
+                            author_image_path = _author_image_path(profile, assets_dir)
+                            if author_image_path is not None:
+                                gr.Image(
+                                    value=str(author_image_path),
+                                    show_label=False,
+                                    interactive=False,
+                                    container=False,
+                                    show_download_button=False,
+                                    show_fullscreen_button=False,
+                                    height=220,
+                                    elem_classes="author-photo",
+                                )
+                            else:
+                                gr.HTML(_author_placeholder_html(profile))
                             gr.Markdown(_author_card_markdown(profile), elem_classes="author-copy")
             with gr.Tab("Future Dev"):
                 gr.Markdown(

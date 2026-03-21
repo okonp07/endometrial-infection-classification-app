@@ -74,7 +74,7 @@ button[role="tab"][aria-selected="true"] {
 
 .workspace-row {
     gap: 1rem;
-    align-items: flex-start;
+    align-items: stretch;
 }
 
 .hero-copy,
@@ -86,6 +86,10 @@ button[role="tab"][aria-selected="true"] {
     border-radius: 28px;
     box-shadow: 0 20px 56px rgba(18, 36, 45, 0.08);
     padding: 1.4rem !important;
+}
+
+.top-card {
+    height: 100%;
 }
 
 .hero-copy {
@@ -299,11 +303,10 @@ button[role="tab"][aria-selected="true"] {
 }
 
 .explanation-shell {
-    margin-top: 1rem;
-    padding: 1.15rem 1.2rem;
-    border-radius: 22px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(238, 243, 244, 0.92) 100%);
-    border: 1px solid rgba(9, 45, 70, 0.08);
+    margin-top: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
 }
 
 .explanation-shell p,
@@ -320,8 +323,18 @@ button[role="tab"][aria-selected="true"] {
 }
 
 .visual-row {
-    margin-top: 0.85rem;
+    margin-top: 1rem;
     gap: 0.85rem;
+    align-items: flex-start;
+}
+
+.explanation-panel {
+    margin-top: 0.15rem;
+}
+
+.explanation-panel .json-container,
+.result-card .json-container {
+    border-radius: 20px;
 }
 
 .eda-note {
@@ -737,7 +750,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
 
     def classify(
         image: Image.Image,
-    ) -> tuple[str, dict[str, float], dict[str, Any], str, Image.Image | None, Image.Image | None]:
+    ) -> tuple[str, dict[str, float], str, Image.Image | None, Image.Image | None, dict[str, Any]]:
         if image is None:
             raise gr.Error("Please upload an image before running inference.")
 
@@ -756,14 +769,33 @@ def build_ui(service: PredictionService) -> gr.Blocks:
         return (
             _prediction_card_html(result),
             result["probabilities"],
-            metadata,
             _explanation_card_html(result, explanation, service.settings.image_size),
             explanation.get("model_input_image"),
             explanation.get("attention_heatmap_image"),
+            metadata,
         )
 
     def download_demo_bundle() -> str:
         return _build_demo_bundle(project_root)
+
+    def clear_classification_view() -> tuple[
+        None,
+        str,
+        dict[str, float],
+        str,
+        None,
+        None,
+        dict[str, Any],
+    ]:
+        return (
+            None,
+            _prediction_placeholder_html(),
+            {},
+            _explanation_placeholder_html(),
+            None,
+            None,
+            {},
+        )
 
     with gr.Blocks(
         title="Endometrial Infection Classification App",
@@ -795,7 +827,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                         )
 
                 with gr.Row(elem_classes="workspace-row"):
-                    with gr.Column(scale=5, elem_classes="panel-card"):
+                    with gr.Column(scale=5, elem_classes="panel-card top-card upload-card"):
                         gr.Markdown(
                             """
                             <span class="section-kicker">Step 1</span>
@@ -810,13 +842,13 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             label="Endometrial scan",
                             image_mode="RGB",
                             sources=["upload"],
-                            height=320,
+                            height=420,
                             show_download_button=False,
                             show_fullscreen_button=False,
                             show_share_button=False,
                         )
 
-                    with gr.Column(scale=5, elem_classes="panel-card"):
+                    with gr.Column(scale=5, elem_classes="panel-card top-card result-card"):
                         gr.Markdown(
                             """
                             <span class="section-kicker">Step 2</span>
@@ -828,38 +860,31 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                         )
                         summary_output = gr.HTML(value=_prediction_placeholder_html())
                         probability_output = gr.Label(label="Class probabilities", num_top_classes=2)
-                        explanation_output = gr.HTML(value=_explanation_placeholder_html())
-                        with gr.Row(elem_classes="visual-row"):
-                            model_input_output = gr.Image(
-                                label="Model input used for inference",
-                                interactive=False,
-                                type="pil",
-                                height=280,
-                                show_download_button=False,
-                            )
-                            attention_heatmap_output = gr.Image(
-                                label="Model attention heatmap",
-                                interactive=False,
-                                type="pil",
-                                height=280,
-                                show_download_button=False,
-                            )
-                        metadata_output = gr.JSON(label="Inference metadata")
 
                 with gr.Row(elem_classes="button-row"):
                     submit_button = gr.Button("Run classification", variant="primary")
-                    gr.ClearButton(
-                        [
-                            image_input,
-                            summary_output,
-                            probability_output,
-                            explanation_output,
-                            model_input_output,
-                            attention_heatmap_output,
-                            metadata_output,
-                        ],
-                        value="Clear",
-                    )
+                    clear_button = gr.Button("Clear", variant="secondary")
+
+                with gr.Column(elem_classes="panel-card explanation-panel"):
+                    explanation_output = gr.HTML(value=_explanation_placeholder_html())
+                    with gr.Row(elem_classes="visual-row"):
+                        model_input_output = gr.Image(
+                            label="Model input used for inference",
+                            interactive=False,
+                            type="pil",
+                            height=300,
+                            show_download_button=False,
+                            show_fullscreen_button=False,
+                        )
+                        attention_heatmap_output = gr.Image(
+                            label="Model attention heatmap",
+                            interactive=False,
+                            type="pil",
+                            height=300,
+                            show_download_button=False,
+                            show_fullscreen_button=False,
+                        )
+                    metadata_output = gr.JSON(label="Inference metadata")
 
                 submit_button.click(
                     fn=classify,
@@ -867,10 +892,22 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                     outputs=[
                         summary_output,
                         probability_output,
-                        metadata_output,
                         explanation_output,
                         model_input_output,
                         attention_heatmap_output,
+                        metadata_output,
+                    ],
+                )
+                clear_button.click(
+                    fn=clear_classification_view,
+                    outputs=[
+                        image_input,
+                        summary_output,
+                        probability_output,
+                        explanation_output,
+                        model_input_output,
+                        attention_heatmap_output,
+                        metadata_output,
                     ],
                 )
 

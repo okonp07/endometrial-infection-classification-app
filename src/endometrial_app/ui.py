@@ -603,13 +603,27 @@ def _research_safeguards_markdown(summary: dict[str, Any]) -> str:
         )
 
     return f"""
-<span class="section-kicker">Research Safeguards</span>
-## Leakage control
+<span class="section-kicker">Evaluation Protocol</span>
+## Leakage-control safeguards
 
-This training run removed **{exact_duplicates_removed} exact duplicates** and then used a **group-aware perceptual-similarity split** so visually similar scans would stay in the same partition instead of leaking across train, validation, and test.
+This training run removed **{exact_duplicates_removed} exact duplicates** and then applied a **group-aware perceptual-similarity split** so visually similar scans would remain in the same partition rather than leak across train, validation, and test.
 
-The similarity audit used a **difference-hash threshold of {threshold}** and detected **{multi_image_group_count} multi-image similarity groups** covering **{images_in_multi_image_groups} scans**. This makes the reported test metrics stricter than a simple random image-level split.{audit_note}
+The similarity audit used a **difference-hash threshold of {threshold}** and detected **{multi_image_group_count} multi-image similarity groups** covering **{images_in_multi_image_groups} scans**. This produces a materially stricter evaluation protocol than a naive random image-level split and reduces one important source of optimistic bias in the reported internal metrics.{audit_note}
 """
+
+
+def _eda_overview_html(summary: dict[str, Any]) -> str:
+    clean_total = sum(int(count) for count in summary.get("clean_counts", {}).values())
+    exact_duplicates_removed = summary.get("data_quality", {}).get("exact_duplicates_removed", "N/A")
+    threshold = summary.get("data_quality", {}).get("near_duplicate_threshold", "N/A")
+    return f"""
+    <div class="eda-note">
+        <p>
+            This EDA Lab documents the curated cohort, partitioning protocol, optimization traces, and internal held-out evaluation behind the deployed classifier.
+            The current production run is based on <strong>{clean_total:,}</strong> cleaned images after removal of <strong>{exact_duplicates_removed}</strong> exact duplicates, with grouped similarity controls applied at a dHash threshold of <strong>{threshold}</strong>.
+        </p>
+    </div>
+    """
 
 
 def _class_distribution_markdown(summary: dict[str, Any]) -> str:
@@ -623,12 +637,49 @@ def _class_distribution_markdown(summary: dict[str, Any]) -> str:
     exact_duplicates_removed = data_quality.get("exact_duplicates_removed", "N/A")
 
     return f"""
-<span class="section-kicker">Dataset Balance</span>
-## Class distribution
+<span class="section-kicker">Dataset Profile</span>
+## Curated class counts
 
 The raw archive contributed **{raw_infected} infected** and **{raw_uninfected} uninfected** valid images. After removing **{exact_duplicates_removed} exact duplicates**, the curated production dataset contains **{clean_infected} infected** and **{clean_uninfected} uninfected** scans.
 
-This means the dataset remains very close to balanced, even though the cleaned counts are not perfectly identical. The chart below uses a zero-based y-axis so small differences are not visually exaggerated.
+The resulting class distribution remains close to balanced even though the cleaned counts are not perfectly identical. The chart below uses a zero-based y-axis so small differences are represented proportionally rather than visually amplified.
+"""
+
+
+def _split_strategy_markdown(summary: dict[str, Any]) -> str:
+    split_counts = summary.get("split_counts", {})
+    train_total = sum(int(count) for count in split_counts.get("train", {}).values())
+    validation_total = sum(int(count) for count in split_counts.get("validation", {}).values())
+    test_total = sum(int(count) for count in split_counts.get("test", {}).values())
+    threshold = summary.get("data_quality", {}).get("near_duplicate_threshold", "N/A")
+
+    return f"""
+<span class="section-kicker">Partition Protocol</span>
+## Curated split composition
+
+The cleaned corpus was partitioned into **{train_total} training**, **{validation_total} validation**, and **{test_total} test** images. Class balance was preserved across the three partitions, and visually related scans were assigned at the similarity-group level so they would not be dispersed across train and evaluation subsets.
+
+The grouped partitioning logic was applied with a perceptual-similarity threshold of **{threshold}**, which makes the split protocol more defensible for research reporting than a simple image-level random split.
+"""
+
+
+def _accuracy_curves_markdown(history: pd.DataFrame) -> str:
+    epoch_count = int(len(history))
+    return f"""
+<span class="section-kicker">Optimization Trace</span>
+## Accuracy across epochs
+
+These curves summarize how training and validation accuracy evolved across **{epoch_count} recorded epochs**. They are included to help readers assess whether predictive performance improved in a consistent manner across optimization rather than diverging sharply between the development and validation partitions.
+"""
+
+
+def _loss_curves_markdown(history: pd.DataFrame) -> str:
+    epoch_count = int(len(history))
+    return f"""
+<span class="section-kicker">Optimization Trace</span>
+## Loss across epochs
+
+Loss is shown alongside accuracy because it is sensitive to probability quality, not only final class decisions. Across **{epoch_count} recorded epochs**, this panel helps indicate whether optimization converged cleanly or showed signs of instability during training.
 """
 
 
@@ -644,14 +695,14 @@ def _held_out_evaluation_markdown(summary: dict[str, Any]) -> str:
     if perfect_internal_result:
         caution = (
             "\nThis internal split still produces near-perfect scores even after the stricter grouped similarity controls. "
-            "That is encouraging, but it should still be interpreted as an internal result rather than proof of broad external generalization."
+            "That is encouraging, but it should be interpreted as an internal estimate rather than proof of broad external generalization."
         )
 
     return f"""
-<span class="section-kicker">Held-Out Evaluation</span>
-## Test metrics
+<span class="section-kicker">Internal Evaluation</span>
+## Held-out test metrics
 
-These metrics summarize the current production model on the reserved test split after exact-duplicate removal and a similarity-group split designed to reduce train/test leakage. The current grouped audit uses a perceptual-similarity threshold of **{threshold}**.{caution}
+These metrics summarize the current production model on the reserved test partition after exact-duplicate removal and a similarity-group split designed to reduce train/test leakage. The grouped audit used a perceptual-similarity threshold of **{threshold}** and should therefore be read as a stricter internal evaluation than a basic random split.{caution}
 """
 
 
@@ -663,12 +714,21 @@ def _interpretation_note_markdown(summary: dict[str, Any]) -> str:
         "This should be treated as an internal held-out evaluation rather than external validation.",
     )
     return f"""
-<span class="section-kicker">Interpretation Note</span>
-## Reading the evaluation carefully
+<span class="section-kicker">Interpretation</span>
+## Reading the results carefully
 
 The current evaluation uses a grouped split with a perceptual-similarity threshold of **{threshold}**, which is materially stronger than a naive random image split. Even so, the most defensible next steps are repeated grouped resampling, external validation, and, where possible, study-level or patient-level partitioning.
 
 {evaluation_scope}
+"""
+
+
+def _demo_profile_markdown() -> str:
+    return """
+<span class="section-kicker">Descriptive Statistics</span>
+## Public demo-bundle profile
+
+This table reports lightweight descriptive statistics for the downloadable public demo bundle, including image dimensions and grayscale intensity summaries. It is intended as a compact characterization aid for app users and reviewers, not as a substitute for full dataset-level radiological feature analysis.
 """
 
 
@@ -1105,19 +1165,11 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                     """
                     ## EDA Lab
 
-                    This space summarizes the data profile, split strategy, training behavior, and representative image characteristics behind the deployed classifier.
+                    This section presents a compact research-facing view of the data curation workflow, split design, optimization traces, and internal evaluation underpinning the deployed classifier.
                     """,
                     elem_classes="sample-copy",
                 )
-                gr.HTML(
-                    """
-                    <div class="eda-note">
-                        <p>
-                            The EDA view combines tracked training summaries with representative demo-image statistics so users can inspect the project beyond the final prediction screen. It also surfaces the leakage-control safeguards used to make the reported metrics more trustworthy for research.
-                        </p>
-                    </div>
-                    """
-                )
+                gr.HTML(_eda_overview_html(training_summary))
                 with gr.Row():
                     with gr.Column(scale=5, elem_classes="panel-card"):
                         gr.Markdown(
@@ -1138,12 +1190,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                         )
                     with gr.Column(scale=5, elem_classes="panel-card"):
                         gr.Markdown(
-                            """
-                            <span class="section-kicker">Split Strategy</span>
-                            ## Train, validation, test
-
-                            This view shows how the curated dataset was split to support robust model development and held-out evaluation. The production workflow keeps perceptually similar scans in the same partition to reduce leakage risk.
-                            """,
+                            _split_strategy_markdown(training_summary),
                             elem_classes="helper-copy",
                         )
                         gr.BarPlot(
@@ -1161,12 +1208,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                 with gr.Row():
                     with gr.Column(scale=5, elem_classes="panel-card"):
                         gr.Markdown(
-                            """
-                            <span class="section-kicker">Training Behaviour</span>
-                            ## Accuracy curves
-
-                            These curves show how training and validation accuracy evolved across epochs.
-                            """,
+                            _accuracy_curves_markdown(training_history),
                             elem_classes="helper-copy",
                         )
                         gr.LinePlot(
@@ -1185,12 +1227,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                         )
                     with gr.Column(scale=5, elem_classes="panel-card"):
                         gr.Markdown(
-                            """
-                            <span class="section-kicker">Training Behaviour</span>
-                            ## Loss curves
-
-                            Lower loss across both training and validation suggests the classifier converged cleanly during optimization.
-                            """,
+                            _loss_curves_markdown(training_history),
                             elem_classes="helper-copy",
                         )
                         gr.LinePlot(
@@ -1231,12 +1268,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                 with gr.Row():
                     with gr.Column(scale=4, elem_classes="panel-card"):
                         gr.Markdown(
-                            """
-                            <span class="section-kicker">Representative Samples</span>
-                            ## Demo-image profile
-
-                            This table captures simple descriptive statistics from the downloadable sample bundle.
-                            """,
+                            _demo_profile_markdown(),
                             elem_classes="helper-copy",
                         )
                         gr.Dataframe(
@@ -1253,9 +1285,9 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                         )
                         gr.Markdown(
                             """
-                            - A perfect score on one held-out split does not automatically guarantee broad generalization.
-                            - Group-aware splitting is stronger than naive random splitting, but external validation is still the gold standard.
-                            - This app now surfaces the safeguards used so readers can assess the evaluation protocol with more confidence.
+                            - These performance estimates are internal to the current curated archive and should not be interpreted as population-level performance.
+                            - Group-aware splitting reduces one major source of optimistic bias, but study-level and external validation remain the stronger tests of generalization.
+                            - The app now exposes its curation and audit safeguards so readers can review the evaluation protocol with greater transparency.
                             """,
                             elem_classes="helper-copy",
                         )

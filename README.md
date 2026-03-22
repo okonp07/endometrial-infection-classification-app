@@ -1,11 +1,47 @@
----
-title: Endometrial Infection Classifier
+title: Endometrial Infection Classification App
 sdk: docker
 app_port: 7860
 license: mit
 ---
 
-# Endometrial Infection Classifier
+# Endometrial Infection Classification App
+
+<p align="center">
+  <a href="https://huggingface.co/spaces/okonp007/endometrial-infection-classification-app">
+    <img src="assets/banner/endometrium_banner.png" alt="Endometrial Infection Classification App banner" width="92%">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://huggingface.co/spaces/okonp007/endometrial-infection-classification-app">
+    <img src="https://img.shields.io/badge/Live%20App-Hugging%20Face%20Space-0A66C2?style=for-the-badge&logo=huggingface&logoColor=FFD21E" alt="Live app on Hugging Face Space">
+  </a>
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12">
+  <a href="https://github.com/okonp07/endometrial-infection-classification-app/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/okonp07/endometrial-infection-classification-app/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status">
+  </a>
+  <a href="https://github.com/okonp07/endometrial-infection-classification-app/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-2E8B57?style=for-the-badge" alt="MIT License">
+  </a>
+</p>
+
+<p align="center">
+  AI-assisted endometrial image classification application for distinguishing between infected and uninfected scans through a deployable TensorFlow, FastAPI, and Gradio workflow.
+</p>
+
+<p align="center">
+  <a href="https://huggingface.co/spaces/okonp007/endometrial-infection-classification-app"><strong>Launch the live app</strong></a>
+</p>
+
+## Live App
+
+The deployed application is available here:
+
+### [Open the Endometrial Infection Classification App](https://huggingface.co/spaces/okonp007/endometrial-infection-classification-app)
+
+If the app has just been updated, give the Hugging Face Space a moment to finish rebuilding before refreshing the page.
+
+## Overview
 
 This repository is a zero-cost production scaffold for serving an endometrial image classifier with:
 

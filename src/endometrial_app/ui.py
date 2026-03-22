@@ -33,7 +33,11 @@ CUSTOM_CSS = """
     --brand-white: #ffffff;
 }
 
+html,
+body,
 .gradio-container {
+    color-scheme: only light !important;
+    forced-color-adjust: none;
     background:
         radial-gradient(circle at top right, rgba(23, 139, 118, 0.18), transparent 32%),
         radial-gradient(circle at top left, rgba(14, 77, 115, 0.12), transparent 24%),
@@ -44,6 +48,11 @@ CUSTOM_CSS = """
     line-height: 1.6;
 }
 
+.gradio-container,
+.gradio-container * {
+    scrollbar-color: rgba(14, 77, 115, 0.4) rgba(238, 243, 244, 0.9);
+}
+
 .gradio-container .prose,
 .gradio-container .prose p,
 .gradio-container .prose li,
@@ -51,6 +60,98 @@ CUSTOM_CSS = """
 .gradio-container .prose h2,
 .gradio-container .prose h3 {
     color: inherit;
+}
+
+.gradio-container .prose strong,
+.gradio-container .prose b,
+.gradio-container .prose code,
+.helper-copy strong,
+.sample-copy strong,
+.about-copy strong,
+.author-copy strong,
+.download-card strong,
+.download-highlight strong,
+.prediction-shell strong,
+.explanation-shell strong,
+.footer-note strong,
+.eda-note strong {
+    color: var(--brand-blue-deep) !important;
+    -webkit-text-fill-color: var(--brand-blue-deep) !important;
+}
+
+.gradio-container .prose code,
+.helper-copy code,
+.sample-copy code,
+.about-copy code,
+.author-copy code,
+.download-card code,
+.prediction-shell code,
+.explanation-shell code,
+.footer-note code,
+.eda-note code {
+    background: rgba(14, 77, 115, 0.08);
+    border-radius: 0.45rem;
+    padding: 0.08rem 0.32rem;
+}
+
+.helper-copy,
+.sample-copy,
+.about-copy,
+.author-copy,
+.prediction-shell,
+.explanation-shell,
+.download-card,
+.download-highlight,
+.footer-note,
+.eda-note,
+.panel-card .json-container,
+.result-card .json-container,
+.explanation-panel .json-container {
+    color-scheme: only light !important;
+}
+
+.helper-copy p,
+.helper-copy li,
+.sample-copy p,
+.sample-copy li,
+.about-copy p,
+.about-copy li,
+.author-copy p,
+.author-copy li,
+.prediction-shell p,
+.prediction-shell li,
+.explanation-shell p,
+.explanation-shell li,
+.download-card p,
+.download-card li,
+.download-highlight p,
+.footer-note p,
+.eda-note p,
+.helper-copy span,
+.sample-copy span,
+.about-copy span,
+.author-copy span,
+.prediction-shell span,
+.explanation-shell span,
+.download-card span,
+.footer-note span,
+.eda-note span {
+    -webkit-text-fill-color: currentColor !important;
+}
+
+.panel-card .json-container,
+.result-card .json-container,
+.explanation-panel .json-container {
+    background: linear-gradient(180deg, #f7fafb 0%, #eef3f4 100%) !important;
+    border: 1px solid rgba(9, 45, 70, 0.08) !important;
+    color: var(--brand-ink) !important;
+}
+
+.panel-card .json-container *,
+.result-card .json-container *,
+.explanation-panel .json-container * {
+    color: var(--brand-ink) !important;
+    -webkit-text-fill-color: currentColor !important;
 }
 
 .gradio-container code,
@@ -232,7 +333,10 @@ button[role="tab"][aria-selected="true"] {
 .sample-copy p,
 .about-copy p,
 .about-copy li,
-.author-copy p {
+.author-copy p,
+.helper-copy li,
+.sample-copy li,
+.author-copy li {
     color: var(--brand-slate) !important;
     line-height: 1.75;
 }
@@ -366,6 +470,7 @@ button[role="tab"][aria-selected="true"] {
 
 .explanation-shell .explanation-title {
     color: var(--brand-blue-deep);
+    -webkit-text-fill-color: var(--brand-blue-deep) !important;
     font-family: "Space Grotesk", "Manrope", sans-serif;
     font-size: 1.1rem;
     font-weight: 700;
@@ -449,11 +554,13 @@ button[role="tab"][aria-selected="true"] {
     margin-top: 0 !important;
     margin-bottom: 0.35rem !important;
     color: var(--brand-blue-deep);
+    -webkit-text-fill-color: var(--brand-blue-deep) !important;
     font-family: "Space Grotesk", "Manrope", sans-serif;
 }
 
 .author-card p {
     color: var(--brand-slate);
+    -webkit-text-fill-color: var(--brand-slate) !important;
     line-height: 1.75;
 }
 

@@ -11,6 +11,7 @@ from endometrial_app.config import Settings
 from endometrial_app.service import PredictionService
 from endometrial_app.ui import (
     AUTHOR_PROFILES,
+    CUSTOM_CSS,
     _build_class_distribution_frame,
     _build_demo_bundle,
     _build_demo_profile_frame,
@@ -42,6 +43,12 @@ def make_service() -> PredictionService:
 def test_build_ui_returns_blocks() -> None:
     ui = build_ui(make_service())
     assert isinstance(ui, gr.Blocks)
+
+
+def test_css_pins_light_color_scheme_for_theme_collision_edge_case() -> None:
+    assert "color-scheme: only light !important;" in CUSTOM_CSS
+    assert ".explanation-shell strong" in CUSTOM_CSS
+    assert "-webkit-text-fill-color: currentColor !important;" in CUSTOM_CSS
 
 
 def test_demo_sample_bundle_contains_twenty_images() -> None:

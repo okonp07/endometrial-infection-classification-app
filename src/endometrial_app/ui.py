@@ -1208,7 +1208,7 @@ Future work should enrich the project without weakening its transparency. Improv
 AUTHOR_MARKDOWN = """
 ## About the Authors
 
-This project currently credits three authors. The cards below show the intended author layout, with a live profile image for Okon Prince and placeholders for the remaining authors until their final images are provided.
+This project currently credits three authors. The cards below show live profile images for Okon Prince and Joseph Edet, while Dr. Obi Cajetan remains in placeholder form until the final portrait image is provided.
 """
 
 
@@ -1241,12 +1241,15 @@ AUTHOR_PROFILES = [
     },
     {
         "name": "Joseph Edet",
-        "role": "WorldQuant University",
-        "placeholder_label": "Image placeholder",
+        "role": "Data Scientist & Machine Learning Engineer | WorldQuant University",
+        "image_asset": "author/joseph-edet.png",
         "bio": (
-            "Placeholder bio: add a short profile describing Joseph Edet's role in the research support, "
-            "analytical contribution, technical collaboration, or future extension of the endometrial "
-            "classification project."
+            "Joseph Edet is a Data Scientist & Machine Learning Engineer with experience leading the design "
+            "and delivery of data science and machine learning solutions that support strategic decision-making "
+            "and measurable business outcomes across different industries including finance, healthcare, "
+            "e-commerce and fintech.\n\n"
+            "He is currently pursuing a Master's degree in Financial Engineering at WorldQuant University "
+            "where he's deepening his expertise in quantitative methods."
         ),
     },
 ]

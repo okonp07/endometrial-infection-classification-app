@@ -12,6 +12,7 @@ from endometrial_app.service import PredictionService
 from endometrial_app.ui import (
     AUTHOR_PROFILES,
     CUSTOM_CSS,
+    DEMO_BUNDLE_URL,
     _build_class_distribution_frame,
     _build_demo_bundle,
     _build_demo_profile_frame,
@@ -55,6 +56,14 @@ def test_demo_sample_bundle_contains_twenty_images() -> None:
     samples_dir = Path(__file__).resolve().parents[1] / "assets" / "demo_samples"
     sample_images = sorted(samples_dir.glob("*.jpg"))
     assert len(sample_images) == 20
+
+
+def test_static_demo_bundle_asset_exists() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    static_bundle_path = project_root / "assets" / "downloads" / "endometrial-demo-test-images.zip"
+
+    assert static_bundle_path.exists()
+    assert DEMO_BUNDLE_URL.endswith("/assets/downloads/endometrial-demo-test-images.zip")
 
 
 def test_future_development_assets_exist() -> None:

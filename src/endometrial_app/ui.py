@@ -20,6 +20,10 @@ FUTURE_DEVELOPMENT_URL = (
     "https://github.com/okonp07/endometrial-infection-classification-app/blob/main/"
     "future%20development.md"
 )
+DEMO_BUNDLE_URL = (
+    "https://huggingface.co/spaces/okonp007/endometrial-infection-classification-app/resolve/main/"
+    "assets/downloads/endometrial-demo-test-images.zip"
+)
 
 
 CUSTOM_CSS = """
@@ -889,8 +893,8 @@ def _build_demo_bundle(project_root: Path) -> str:
             "",
             "Bundle contents:",
             "- 20 demo images from the held-out test split",
-            "- Neutral scan filenames with no class labels in the archive",
-            "- Randomized file order for more natural blind testing",
+            "- neutral scan filenames with no class labels in the archive",
+            "- randomized file order for more natural blind testing",
             "",
             "Intended use:",
             "These images are provided so users can test the deployed application without sourcing their own scans.",
@@ -1541,11 +1545,11 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                 with gr.Row(elem_classes="workspace-row"):
                     with gr.Column(scale=5, elem_classes="panel-card top-card upload-card"):
                         gr.Markdown(
-                            """
+                            f"""
                             <span class="section-kicker">Step 1</span>
                             ## Upload an image
 
-                            Add an endometrial scan and send it through the classifier. If you do not have a scan available, open the **Download** tab and use the bundled test image pack.
+                            Add an endometrial scan and send it through the classifier. If you do not have a scan available, use the [Download]({DEMO_BUNDLE_URL}) link to grab the bundled test image pack.
                             """,
                             elem_classes="helper-copy",
                         )

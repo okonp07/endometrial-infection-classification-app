@@ -11,13 +11,13 @@ license: mit
 # Endometrial Infection Classification App
 
 <p align="center">
-  <a href="https://huggingface.co/spaces/okonp007/endometrial-infection-classification-app">
+  <a href="https://okonp007-endometrial-infection-classification-app.hf.space">
     <img src="assets/banner/endometrium_banner.png" alt="Endometrial Infection Classification App banner" width="92%">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://huggingface.co/spaces/okonp007/endometrial-infection-classification-app">
+  <a href="https://okonp007-endometrial-infection-classification-app.hf.space">
     <img src="https://img.shields.io/badge/Live%20App-Hugging%20Face%20Space-0A66C2?style=for-the-badge&logo=huggingface&logoColor=FFD21E" alt="Live app on Hugging Face Space">
   </a>
   <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12">
@@ -34,14 +34,14 @@ license: mit
 </p>
 
 <p align="center">
-  <a href="https://huggingface.co/spaces/okonp007/endometrial-infection-classification-app"><strong>Launch the live app</strong></a>
+  <a href="https://okonp007-endometrial-infection-classification-app.hf.space"><strong>Launch the live app</strong></a>
 </p>
 
 ## Live App
 
 The deployed application is available here:
 
-### [Open the Endometrial Infection Classification App](https://huggingface.co/spaces/okonp007/endometrial-infection-classification-app)
+### [Open the Endometrial Infection Classification App](https://okonp007-endometrial-infection-classification-app.hf.space)
 
 If the app has just been updated, give the Hugging Face Space a moment to finish rebuilding before refreshing the page.
 

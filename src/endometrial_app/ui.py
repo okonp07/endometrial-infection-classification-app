@@ -1323,7 +1323,7 @@ Future work should enrich the project without weakening its transparency. Improv
 AUTHOR_MARKDOWN = """
 ## About the Authors
 
-This project currently credits three authors. The cards below show live profile images for Okon Prince and Joseph Edet, while Dr. Obi Cajetan remains in placeholder form until the final portrait image is provided.
+This project currently credits three authors. The cards below show the current author layout with live profile images and professional background summaries for all contributors.
 """
 
 
@@ -1345,13 +1345,21 @@ AUTHOR_PROFILES = [
         ),
     },
     {
-        "name": "Dr. Obi Cajetan",
-        "role": "University of Calabar Teaching Hospital",
-        "image_asset": "author/Cajetan.png",
+        "name": "Cajetan Obi",
+        "role": "Associate Director, Strategic Information at Excellence Community Education Welfare Scheme (ECEWS)",
+        "image_asset": "author/Cajetan.jpeg",
         "bio": (
-            "Placeholder bio: add a short profile describing Dr. Obi Cajetan's clinical, medical, or "
-            "research contribution to the project, including subject-matter leadership, data context, and "
-            "the domain relevance of the endometrial infection study."
+            "Cajetan Obi is a seasoned detail-oriented Program and Monitoring & Evaluation (M&E) expert "
+            "with over 15 years of experience in public health program design, implementation, performance "
+            "management, and data use for decision-making across Nigeria. Proven success leading large "
+            "multidisciplinary teams, strengthening government systems, deploying electronic medical records, "
+            "and advancing quality improvement and accountability. Experienced in building M&E system, "
+            "developing operational workplans and budgets aligned with donor policies, coordinating "
+            "multi-stakeholder partnerships, interpreting and making sense of complex data sets, visualizing "
+            "trends and developing and implementing analytics models to improve business outcomes. He is "
+            "proficient in SQL, Python, Tableau, Power Bi, SPSS, STATA, DHIS2 and Excel.\n\n"
+            "Currently, he serves as associate director strategic information for Excellence Community "
+            "Education Welfare Scheme (ECEWS)."
         ),
     },
     {

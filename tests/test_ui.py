@@ -76,16 +76,20 @@ def test_future_development_assets_exist() -> None:
 def test_author_profiles_cover_three_authors() -> None:
     author_names = {profile["name"] for profile in AUTHOR_PROFILES}
     prince_profile = next(profile for profile in AUTHOR_PROFILES if profile["name"] == "Okon Prince")
+    cajetan_profile = next(profile for profile in AUTHOR_PROFILES if profile["name"] == "Cajetan Obi")
     joseph_profile = next(profile for profile in AUTHOR_PROFILES if profile["name"] == "Joseph Edet")
 
     assert author_names == {
         "Okon Prince",
-        "Dr. Obi Cajetan",
+        "Cajetan Obi",
         "Joseph Edet",
     }
     assert prince_profile["image_asset"] == "author/okon-prince.png"
     assert "MIVA Open University" in prince_profile["role"]
     assert "production-ready intelligence" in prince_profile["bio"]
+    assert cajetan_profile["image_asset"] == "author/Cajetan.jpeg"
+    assert "ECEWS" in cajetan_profile["role"]
+    assert "Power Bi" in cajetan_profile["bio"]
     assert joseph_profile["image_asset"] == "author/joseph-edet.png"
     assert "WorldQuant University" in joseph_profile["role"]
     assert "Financial Engineering" in joseph_profile["bio"]

@@ -252,6 +252,19 @@ button[role="tab"][aria-selected="true"] {
     line-height: 1.75;
 }
 
+.hero-copy .prose strong,
+.hero-copy .prose b,
+.hero-copy strong,
+.hero-copy b {
+    color: var(--brand-white) !important;
+    -webkit-text-fill-color: var(--brand-white) !important;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.45rem;
+    padding: 0.04rem 0.38rem;
+    font-weight: 800;
+}
+
 .hero-stat-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -795,7 +808,7 @@ FOOTER_HTML = """
     <p><strong>&copy; 2026</strong></p>
     <p>
         This project is based on research work by Okon Prince of Miva Open University, Dr. Obi Cajetan of the University of Calabar Teaching Hospital, and Joseph Edet of WorldQuant University.
-        It is covered by the MIT License, and the authors should be acknowledged if the product or methods are referenced in future research.
+        It is covered by the MIT License. The authors should be acknowledged if the product or methods are referenced in future research or production efforts.
     </p>
     <p>Enquiries: okonp07@gmail.com</p>
 </div>

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import html
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import gradio as gr
 import numpy as np
 import pandas as pd
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from endometrial_app.demo_bundle import (
     DEMO_BUNDLE_ROUTE,
@@ -16,6 +17,7 @@ from endometrial_app.demo_bundle import (
     collect_demo_samples,
     demo_bundle_filename,
 )
+from endometrial_app.feedback import save_feedback
 from endometrial_app.service import PredictionService
 
 
@@ -495,10 +497,68 @@ button[role="tab"][aria-selected="true"] {
     font-weight: 700;
 }
 
+.explanation-shell.placeholder-state {
+    padding: 1rem 1.05rem 0;
+}
+
+.placeholder-guide {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-top: 1rem;
+}
+
+.placeholder-guide-card {
+    padding: 0.95rem;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(247, 250, 251, 0.98) 0%, rgba(237, 245, 243, 0.92) 100%);
+    border: 1px solid rgba(9, 45, 70, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.placeholder-guide-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--brand-blue-deep), var(--brand-green));
+    color: var(--brand-white) !important;
+    -webkit-text-fill-color: var(--brand-white) !important;
+    font-size: 0.88rem;
+    font-weight: 800;
+    margin-bottom: 0.65rem;
+}
+
+.placeholder-guide-card strong {
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
+.placeholder-guide-card p {
+    margin: 0;
+    font-size: 0.93rem;
+    line-height: 1.65;
+}
+
 .visual-row {
     margin-top: 1rem;
     gap: 0.85rem;
     align-items: flex-start;
+}
+
+.visual-row .image-container,
+.visual-row [data-testid="image"] {
+    border-radius: 24px !important;
+    overflow: hidden;
+    border: 1px solid rgba(9, 45, 70, 0.08);
+    background: linear-gradient(180deg, rgba(247, 250, 251, 0.98) 0%, rgba(237, 245, 243, 0.92) 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.visual-row img {
+    display: block;
 }
 
 .explanation-panel {
@@ -508,6 +568,49 @@ button[role="tab"][aria-selected="true"] {
 .explanation-panel .json-container,
 .result-card .json-container {
     border-radius: 20px;
+}
+
+.feedback-card textarea,
+.feedback-card input,
+.feedback-card .wrap {
+    border-radius: 16px !important;
+}
+
+.feedback-card .wrap {
+    border-color: rgba(9, 45, 70, 0.12) !important;
+}
+
+.feedback-status {
+    padding: 1.1rem 1.15rem;
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(247, 250, 251, 0.98) 0%, rgba(237, 245, 243, 0.92) 100%);
+    border: 1px solid rgba(9, 45, 70, 0.08);
+}
+
+.feedback-status h3 {
+    margin: 0 0 0.55rem !important;
+    color: var(--brand-blue-deep);
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+}
+
+.feedback-status p,
+.feedback-status li {
+    margin: 0.3rem 0;
+    color: var(--brand-slate);
+    line-height: 1.7;
+}
+
+.feedback-note {
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(14, 77, 115, 0.08), rgba(23, 139, 118, 0.1));
+    border: 1px solid rgba(14, 77, 115, 0.08);
+}
+
+.feedback-note p {
+    margin: 0;
+    color: var(--brand-blue-deep);
+    line-height: 1.7;
 }
 
 .eda-note {
@@ -624,6 +727,10 @@ button[role="tab"][aria-selected="true"] {
         gap: 0.85rem;
     }
 
+    .placeholder-guide {
+        grid-template-columns: 1fr;
+    }
+
     .hero-copy,
     .hero-banner-wrap,
     .panel-card,
@@ -737,6 +844,12 @@ button[role="tab"][aria-selected="true"] {
     .download-card {
         padding: 0.92rem !important;
         border-radius: 20px;
+    }
+
+    .feedback-status,
+    .feedback-note {
+        padding: 0.9rem 0.95rem;
+        border-radius: 18px;
     }
 
     .hero-copy h1 {
@@ -1291,6 +1404,156 @@ def _author_image_path(profile: dict[str, str], assets_dir: Path) -> Path | None
     return None
 
 
+def _load_ui_font(size: int, *, bold: bool = False) -> ImageFont.ImageFont:
+    candidate_names = [
+        "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        if bold
+        else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for font_name in candidate_names:
+        try:
+            return ImageFont.truetype(font_name, size=size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
+@lru_cache(maxsize=2)
+def _base_visual_placeholder(kind: str) -> Image.Image:
+    width, height = 1200, 900
+    if kind == "attention_heatmap":
+        start_rgb = np.array([8, 34, 54], dtype=np.float32)
+        end_rgb = np.array([24, 139, 118], dtype=np.float32)
+        title = "Attention heatmap will appear here"
+        subtitle = "High-influence regions are highlighted after inference."
+    else:
+        start_rgb = np.array([235, 242, 245], dtype=np.float32)
+        end_rgb = np.array([210, 232, 238], dtype=np.float32)
+        title = "Model input preview will appear here"
+        subtitle = "This panel shows the resized scan used by the classifier."
+
+    gradient = np.linspace(0.0, 1.0, height, dtype=np.float32)[:, None, None]
+    canvas = ((1.0 - gradient) * start_rgb + gradient * end_rgb).astype(np.uint8)
+    canvas = np.repeat(canvas, width, axis=1)
+    image = Image.fromarray(canvas, mode="RGB").convert("RGBA")
+    draw = ImageDraw.Draw(image)
+
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    overlay_draw.rounded_rectangle(
+        (62, 58, width - 62, height - 58),
+        radius=44,
+        outline=(255, 255, 255, 145),
+        width=3,
+        fill=(255, 255, 255, 22),
+    )
+    overlay_draw.rounded_rectangle(
+        (120, 120, width - 120, height - 240),
+        radius=34,
+        outline=(255, 255, 255, 88),
+        width=2,
+        fill=(255, 255, 255, 18),
+    )
+
+    if kind == "attention_heatmap":
+        for x0, y0, radius, fill in [
+            (260, 290, 120, (32, 205, 210, 70)),
+            (510, 220, 150, (28, 163, 255, 82)),
+            (820, 320, 145, (84, 204, 153, 64)),
+            (700, 470, 90, (158, 241, 255, 76)),
+        ]:
+            overlay_draw.ellipse((x0 - radius, y0 - radius, x0 + radius, y0 + radius), fill=fill)
+        overlay_draw.line((250, 320, 930, 320), fill=(255, 255, 255, 55), width=2)
+        overlay_draw.line((590, 180, 590, 590), fill=(255, 255, 255, 55), width=2)
+    else:
+        overlay_draw.rounded_rectangle(
+            (290, 190, 910, 545),
+            radius=30,
+            outline=(255, 255, 255, 150),
+            width=4,
+        )
+        overlay_draw.rounded_rectangle(
+            (365, 265, 835, 470),
+            radius=22,
+            outline=(255, 255, 255, 95),
+            width=2,
+        )
+        for x_coord in range(330, 900, 110):
+            overlay_draw.line((x_coord, 210, x_coord, 525), fill=(255, 255, 255, 42), width=1)
+        for y_coord in range(225, 540, 75):
+            overlay_draw.line((305, y_coord, 895, y_coord), fill=(255, 255, 255, 42), width=1)
+
+    image = Image.alpha_composite(image, overlay)
+    draw = ImageDraw.Draw(image)
+    title_font = _load_ui_font(42, bold=True)
+    subtitle_font = _load_ui_font(24)
+    micro_font = _load_ui_font(20, bold=True)
+
+    draw.rounded_rectangle(
+        (124, height - 186, width - 124, height - 118),
+        radius=20,
+        fill=(9, 45, 70, 212),
+    )
+    draw.text((154, height - 177), title, font=title_font, fill=(255, 255, 255, 255))
+    draw.text((154, height - 132), subtitle, font=subtitle_font, fill=(223, 244, 238, 255))
+    draw.text((154, 142), "Awaiting inference", font=micro_font, fill=(255, 255, 255, 235))
+
+    return image.convert("RGB")
+
+
+def _visual_placeholder_image(kind: str) -> Image.Image:
+    return _base_visual_placeholder(kind).copy()
+
+
+def _metadata_placeholder() -> dict[str, Any]:
+    return {
+        "status": "Awaiting inference",
+        "next_step": "Upload a scan and run the classifier to populate this panel.",
+        "fields_preview": [
+            "predicted_index",
+            "class_order",
+            "model_path",
+            "input_size",
+            "attention_layer",
+            "focus_region",
+            "focus_pattern",
+            "focus_coverage",
+        ],
+    }
+
+
+def _feedback_placeholder_html() -> str:
+    return """
+    <div class="feedback-status">
+        <h3>Help improve the project</h3>
+        <p>
+            Share what feels strong, what could be clearer, and whether you would recommend the project to other users, researchers, or collaborators.
+        </p>
+        <div class="feedback-note">
+            <p>
+                Feedback is especially useful on the interface, explainability flow, research clarity, and what you would improve in a future version.
+            </p>
+        </div>
+    </div>
+    """
+
+
+def _feedback_success_html(recommendation: str) -> str:
+    return f"""
+    <div class="feedback-status">
+        <h3>Thank you for sharing your feedback</h3>
+        <p>
+            Your note has been recorded for project review and future refinement.
+        </p>
+        <p><strong>Recommendation received:</strong> {html.escape(recommendation)}</p>
+        <p>
+            Suggestions like yours help strengthen the research presentation, interface design, and practical usefulness of the app.
+        </p>
+    </div>
+    """
+
+
 def _prediction_placeholder_html() -> str:
     return """
     <div class="prediction-shell placeholder">
@@ -1326,11 +1589,28 @@ def _prediction_card_html(result: dict[str, Any]) -> str:
 
 def _explanation_placeholder_html() -> str:
     return """
-    <div class="explanation-shell">
+    <div class="explanation-shell placeholder-state">
         <div class="explanation-title">Why the model predicted this</div>
         <p>
-            After inference, this section will explain the processing steps used by the model and show an attention-based visual summary for the current scan.
+            After inference, this section will explain the processing steps used by the model, highlight the most influential image regions, and summarize the technical metadata behind the current run.
         </p>
+        <div class="placeholder-guide">
+            <div class="placeholder-guide-card">
+                <span class="placeholder-guide-step">1</span>
+                <strong>Preprocess</strong>
+                <p>The uploaded scan is resized and prepared for the TensorFlow classifier.</p>
+            </div>
+            <div class="placeholder-guide-card">
+                <span class="placeholder-guide-step">2</span>
+                <strong>Inspect</strong>
+                <p>The model input preview and attention heatmap appear here once inference completes.</p>
+            </div>
+            <div class="placeholder-guide-card">
+                <span class="placeholder-guide-step">3</span>
+                <strong>Summarize</strong>
+                <p>The metadata card captures the run details used to explain the prediction outcome.</p>
+            </div>
+        </div>
     </div>
     """
 
@@ -1401,6 +1681,9 @@ def build_ui(service: PredictionService) -> gr.Blocks:
     demo_profile_frame = _build_demo_profile_frame(project_root)
     class_chart_limit = _safe_chart_limit(class_distribution_frame, "count", minimum=10.0)
     split_chart_limit = _safe_chart_limit(split_distribution_frame, "count", minimum=10.0)
+    initial_model_input_placeholder = _visual_placeholder_image("model_input")
+    initial_attention_placeholder = _visual_placeholder_image("attention_heatmap")
+    initial_metadata_placeholder = _metadata_placeholder()
 
     theme = gr.themes.Soft(
         primary_hue="blue",
@@ -1449,13 +1732,43 @@ def build_ui(service: PredictionService) -> gr.Blocks:
     def download_demo_bundle() -> str:
         return _build_demo_bundle(project_root)
 
+    def submit_feedback(
+        name: str,
+        role: str,
+        recommendation: str,
+        rating: int,
+        thoughts: str,
+        suggestions: str,
+    ) -> tuple[str, str, str, str, int, str, str]:
+        if not thoughts.strip() and not suggestions.strip():
+            raise gr.Error("Please share at least one thought or recommendation before submitting feedback.")
+
+        save_feedback(
+            project_root,
+            name=name,
+            role=role,
+            recommendation=recommendation,
+            rating=rating,
+            thoughts=thoughts,
+            suggestions=suggestions,
+        )
+        return (
+            _feedback_success_html(recommendation),
+            "",
+            "",
+            "Recommend",
+            5,
+            "",
+            "",
+        )
+
     def clear_classification_view() -> tuple[
         None,
         str,
         dict[str, float],
         str,
-        None,
-        None,
+        Image.Image,
+        Image.Image,
         dict[str, Any],
     ]:
         return (
@@ -1463,9 +1776,9 @@ def build_ui(service: PredictionService) -> gr.Blocks:
             _prediction_placeholder_html(),
             {},
             _explanation_placeholder_html(),
-            None,
-            None,
-            {},
+            _visual_placeholder_image("model_input"),
+            _visual_placeholder_image("attention_heatmap"),
+            _metadata_placeholder(),
         )
 
     with gr.Blocks(
@@ -1542,6 +1855,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                     with gr.Row(elem_classes="visual-row"):
                         model_input_output = gr.Image(
                             label="Model input used for inference",
+                            value=initial_model_input_placeholder,
                             interactive=False,
                             type="pil",
                             height=300,
@@ -1550,13 +1864,14 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                         )
                         attention_heatmap_output = gr.Image(
                             label="Model attention heatmap",
+                            value=initial_attention_placeholder,
                             interactive=False,
                             type="pil",
                             height=300,
                             show_download_button=False,
                             show_fullscreen_button=False,
                         )
-                    metadata_output = gr.JSON(label="Inference metadata")
+                    metadata_output = gr.JSON(label="Inference metadata", value=initial_metadata_placeholder)
 
                 submit_button.click(
                     fn=classify,
@@ -1639,6 +1954,92 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             variant="primary",
                             size="lg",
                         )
+
+            with gr.Tab("Feedback"):
+                gr.Markdown(
+                    """
+                    ## Feedback
+
+                    This page gives users a simple way to share impressions about the project, recommend improvements, and tell us whether they would recommend the solution to others.
+                    """,
+                    elem_classes="sample-copy",
+                )
+                with gr.Row():
+                    with gr.Column(scale=6, elem_classes="panel-card feedback-card"):
+                        gr.HTML(
+                            """
+                            <div class="feedback-note">
+                                <p>
+                                    Thoughtful feedback helps us improve the research presentation, interface clarity, explainability workflow, and practical usefulness of the app.
+                                </p>
+                            </div>
+                            """
+                        )
+                        feedback_name = gr.Textbox(
+                            label="Name or alias",
+                            placeholder="Optional",
+                        )
+                        feedback_role = gr.Textbox(
+                            label="Role / affiliation",
+                            placeholder="Optional",
+                        )
+                        feedback_recommendation = gr.Radio(
+                            choices=["Strongly recommend", "Recommend", "Needs improvement"],
+                            value="Recommend",
+                            label="Would you recommend this project?",
+                        )
+                        feedback_rating = gr.Slider(
+                            minimum=1,
+                            maximum=5,
+                            step=1,
+                            value=5,
+                            label="Overall experience rating",
+                        )
+                        feedback_thoughts = gr.Textbox(
+                            label="Your thoughts",
+                            lines=5,
+                            placeholder="What stood out to you about the project, model explanation, or interface?",
+                        )
+                        feedback_suggestions = gr.Textbox(
+                            label="Recommendations / suggestions",
+                            lines=4,
+                            placeholder="What would you improve, extend, or refine next?",
+                        )
+                        feedback_submit = gr.Button("Share feedback", variant="primary")
+                    with gr.Column(scale=4, elem_classes="panel-card feedback-card"):
+                        feedback_status = gr.HTML(value=_feedback_placeholder_html())
+                        gr.Markdown(
+                            """
+                            ### Helpful feedback areas
+
+                            - Ease of use for first-time visitors
+                            - Clarity of the prediction and explanation flow
+                            - Trustworthiness of the interface and research framing
+                            - Features or improvements you would like to see next
+                            """,
+                            elem_classes="helper-copy",
+                        )
+
+                feedback_submit.click(
+                    fn=submit_feedback,
+                    inputs=[
+                        feedback_name,
+                        feedback_role,
+                        feedback_recommendation,
+                        feedback_rating,
+                        feedback_thoughts,
+                        feedback_suggestions,
+                    ],
+                    outputs=[
+                        feedback_status,
+                        feedback_name,
+                        feedback_role,
+                        feedback_recommendation,
+                        feedback_rating,
+                        feedback_thoughts,
+                        feedback_suggestions,
+                    ],
+                )
 
             with gr.Tab("EDA Lab"):
                 gr.Markdown(

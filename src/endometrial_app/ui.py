@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import json
+import random
 import tempfile
 import zipfile
 from pathlib import Path
@@ -860,8 +861,19 @@ def _demo_bundle_filename() -> str:
     return "endometrial-demo-test-images.zip"
 
 
+def _build_demo_bundle_entries(project_root: Path) -> list[tuple[Path, str]]:
+    sample_paths = [Path(path) for path in _collect_demo_samples(project_root)]
+    shuffled_paths = sample_paths[:]
+    random.Random(2026).shuffle(shuffled_paths)
+
+    bundle_entries: list[tuple[Path, str]] = []
+    for index, sample_file in enumerate(shuffled_paths, start=1):
+        bundle_entries.append((sample_file, f"scan_{index:02d}{sample_file.suffix.lower()}"))
+    return bundle_entries
+
+
 def _build_demo_bundle(project_root: Path) -> str:
-    sample_paths = _collect_demo_samples(project_root)
+    bundle_entries = _build_demo_bundle_entries(project_root)
     with tempfile.NamedTemporaryFile(
         prefix="endometrial-demo-samples-",
         suffix=".zip",
@@ -875,16 +887,16 @@ def _build_demo_bundle(project_root: Path) -> str:
             "",
             "Bundle contents:",
             "- 20 demo images from the held-out test split",
-            "- 10 infected examples",
-            "- 10 uninfected examples",
+            "- Neutral scan filenames with no class labels in the archive",
+            "- Randomized file order for more natural blind testing",
             "",
             "Intended use:",
             "These images are provided so users can test the deployed application without sourcing their own scans.",
+            "The archive is intentionally unlabeled so filename cues do not hint at the expected model output.",
         ]
         archive.writestr("README.txt", "\n".join(manifest_lines))
-        for sample_path in sample_paths:
-            sample_file = Path(sample_path)
-            archive.write(sample_file, arcname=f"demo_samples/{sample_file.name}")
+        for sample_file, neutral_name in bundle_entries:
+            archive.write(sample_file, arcname=f"demo_samples/{neutral_name}")
 
     return str(bundle_path)
 
@@ -1629,7 +1641,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                     """
                     <div class="download-highlight">
                         <p>
-                            The download bundle contains 20 curated test images drawn from the held-out test split: 10 infected examples and 10 uninfected examples.
+                            The download bundle contains 20 curated test images from the held-out test split, packaged with neutral filenames and randomized ordering so the files do not reveal their class labels upfront.
                         </p>
                     </div>
                     """
@@ -1641,14 +1653,14 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             ### What is included
 
                             - A balanced set of 20 demo scan images
-                            - Files organized for quick local testing
+                            - Neutral, shuffled scan filenames for blind testing
                             - A small `README.txt` inside the archive describing the bundle
 
                             ### Suggested use
 
                             - Download the bundle
                             - Upload any image into the **Classify** tab
-                            - Compare outputs across infected and uninfected examples
+                            - Compare outputs across different scan examples
                             """,
                         )
                     with gr.Column(scale=4, elem_classes="download-card"):

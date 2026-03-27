@@ -97,6 +97,12 @@ def test_download_bundle_contains_samples_and_manifest() -> None:
             assert "README.txt" in names
             image_members = [name for name in names if name.startswith("demo_samples/")]
             assert len(image_members) == 20
+            assert all("infected_" not in name and "uninfected_" not in name for name in image_members)
+            assert all(name.split("/")[-1].startswith("scan_") for name in image_members)
+            manifest_text = archive.read("README.txt").decode("utf-8")
+            assert "neutral scan filenames" in manifest_text
+            assert "10 infected examples" not in manifest_text
+            assert "10 uninfected examples" not in manifest_text
     finally:
         if bundle_path.exists():
             bundle_path.unlink()

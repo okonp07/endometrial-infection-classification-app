@@ -234,6 +234,8 @@ button[role="tab"][aria-selected="true"] {
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--brand-white) !important;
+    -webkit-text-fill-color: var(--brand-white) !important;
     font-size: 0.82rem;
     font-weight: 700;
     letter-spacing: 0.04em;

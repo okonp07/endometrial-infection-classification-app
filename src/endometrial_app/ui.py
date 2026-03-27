@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import html
 import json
-import random
-import tempfile
-import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -13,16 +10,18 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
+from endometrial_app.demo_bundle import (
+    DEMO_BUNDLE_ROUTE,
+    build_demo_bundle,
+    collect_demo_samples,
+    demo_bundle_filename,
+)
 from endometrial_app.service import PredictionService
 
 
 FUTURE_DEVELOPMENT_URL = (
     "https://github.com/okonp07/endometrial-infection-classification-app/blob/main/"
     "future%20development.md"
-)
-DEMO_BUNDLE_URL = (
-    "https://huggingface.co/spaces/okonp007/endometrial-infection-classification-app/resolve/main/"
-    "assets/downloads/endometrial-demo-test-images.zip"
 )
 
 
@@ -830,14 +829,7 @@ def _load_training_summary(project_root: Path) -> dict[str, Any]:
 
 
 def _collect_demo_samples(project_root: Path) -> list[str]:
-    samples_dir = project_root / "assets" / "demo_samples"
-    infected = sorted(samples_dir.glob("infected_*.jpg"))
-    uninfected = sorted(samples_dir.glob("uninfected_*.jpg"))
-
-    ordered_paths: list[str] = []
-    for infected_path, uninfected_path in zip(infected, uninfected):
-        ordered_paths.extend([str(infected_path), str(uninfected_path)])
-    return ordered_paths
+    return [str(path) for path in collect_demo_samples(project_root)]
 
 
 def _hero_stats_html(summary: dict[str, Any]) -> str:
@@ -864,47 +856,11 @@ def _hero_stats_html(summary: dict[str, Any]) -> str:
 
 
 def _demo_bundle_filename() -> str:
-    return "endometrial-demo-test-images.zip"
-
-
-def _build_demo_bundle_entries(project_root: Path) -> list[tuple[Path, str]]:
-    sample_paths = [Path(path) for path in _collect_demo_samples(project_root)]
-    shuffled_paths = sample_paths[:]
-    random.Random(2026).shuffle(shuffled_paths)
-
-    bundle_entries: list[tuple[Path, str]] = []
-    for index, sample_file in enumerate(shuffled_paths, start=1):
-        bundle_entries.append((sample_file, f"scan_{index:02d}{sample_file.suffix.lower()}"))
-    return bundle_entries
+    return demo_bundle_filename()
 
 
 def _build_demo_bundle(project_root: Path) -> str:
-    bundle_entries = _build_demo_bundle_entries(project_root)
-    with tempfile.NamedTemporaryFile(
-        prefix="endometrial-demo-samples-",
-        suffix=".zip",
-        delete=False,
-    ) as temporary_file:
-        bundle_path = Path(temporary_file.name)
-
-    with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        manifest_lines = [
-            "Endometrial Infection Classification App",
-            "",
-            "Bundle contents:",
-            "- 20 demo images from the held-out test split",
-            "- neutral scan filenames with no class labels in the archive",
-            "- randomized file order for more natural blind testing",
-            "",
-            "Intended use:",
-            "These images are provided so users can test the deployed application without sourcing their own scans.",
-            "The archive is intentionally unlabeled so filename cues do not hint at the expected model output.",
-        ]
-        archive.writestr("README.txt", "\n".join(manifest_lines))
-        for sample_file, neutral_name in bundle_entries:
-            archive.write(sample_file, arcname=f"demo_samples/{neutral_name}")
-
-    return str(bundle_path)
+    return build_demo_bundle(project_root)
 
 
 def _load_training_history(project_root: Path) -> pd.DataFrame:
@@ -1549,7 +1505,7 @@ def build_ui(service: PredictionService) -> gr.Blocks:
                             <span class="section-kicker">Step 1</span>
                             ## Upload an image
 
-                            Add an endometrial scan and send it through the classifier. If you do not have a scan available, use the [Download]({DEMO_BUNDLE_URL}) link to grab the bundled test image pack.
+                            Add an endometrial scan and send it through the classifier. If you do not have a scan available, use the [Download]({DEMO_BUNDLE_ROUTE}) link to grab the bundled test image pack.
                             """,
                             elem_classes="helper-copy",
                         )

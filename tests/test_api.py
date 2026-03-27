@@ -13,11 +13,12 @@ from endometrial_app.service import PredictionService
 
 class FakeService(PredictionService):
     def __init__(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
         settings = Settings(
             project_name="Test",
-            project_root=Path("."),
-            model_path=Path("models/fake.keras"),
-            class_names_path=Path("artifacts/class_names.json"),
+            project_root=project_root,
+            model_path=project_root / "models" / "fake.keras",
+            class_names_path=project_root / "artifacts" / "class_names.json",
             image_width=224,
             image_height=224,
             threshold=0.5,
@@ -62,3 +63,12 @@ def test_predict_endpoint() -> None:
 
     assert response.status_code == 200
     assert response.json()["predicted_label"] == "infected"
+
+
+def test_download_demo_pack_endpoint() -> None:
+    client = TestClient(create_api_app(FakeService()))
+    response = client.get("/downloads/demo-pack")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert "endometrial-demo-test-images.zip" in response.headers["content-disposition"]

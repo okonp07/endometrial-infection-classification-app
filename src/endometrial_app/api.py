@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from io import BytesIO
+from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image, UnidentifiedImageError
+from starlette.background import BackgroundTask
 
+from endometrial_app.demo_bundle import build_demo_bundle, demo_bundle_filename
 from endometrial_app.schemas import ErrorResponse, HealthResponse, PredictionResponse
 from endometrial_app.service import PredictionService
 
@@ -50,6 +53,16 @@ def create_api_app(service: PredictionService) -> FastAPI:
                 },
                 "model_path": str(service.settings.model_path),
             }
+        )
+
+    @app.get("/downloads/demo-pack")
+    def download_demo_pack() -> FileResponse:
+        bundle_path = Path(build_demo_bundle(service.settings.project_root))
+        return FileResponse(
+            bundle_path,
+            media_type="application/zip",
+            filename=demo_bundle_filename(),
+            background=BackgroundTask(bundle_path.unlink, missing_ok=True),
         )
 
     return app

@@ -1347,7 +1347,7 @@ AUTHOR_PROFILES = [
     {
         "name": "Dr. Obi Cajetan",
         "role": "University of Calabar Teaching Hospital",
-        "placeholder_label": "Image placeholder",
+        "image_asset": "author/Cajetan.png",
         "bio": (
             "Placeholder bio: add a short profile describing Dr. Obi Cajetan's clinical, medical, or "
             "research contribution to the project, including subject-matter leadership, data context, and "
